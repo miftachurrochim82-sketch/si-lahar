@@ -1,0 +1,171 @@
+<!-- ============================================================
+     V_Rencana.html — Rencana Harian: Kanban + Kalender (G18c-2 KIT)
+     Gabungan dari V_RencanaKanban.html + V_RencanaKalender.html
+     (keputusan pemilik 2026-09-19: satu file include, dua mode).
+     Mode dibedakan oleh currentPage ('rencana_kanban' vs
+     'rencana_kalender'). Modal form rencana = satu (di V_Modals,
+     dipicu showRencanaForm). Klik sel tanggal → pindah ke Kanban
+     terfilter tanggal sel (FR-08).
+     ============================================================ -->
+
+<!-- ==================== MODE 1: KANBAN ==================== -->
+<div v-if="currentPage === 'rencana_kanban'" class="space-y-4 animate-fade-in select-none">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight flex items-center gap-2 text-slate-800 dark:text-white">
+        <i class="fa-solid fa-table-columns text-emerald-600 dark:text-emerald-400"></i> Rencana Kanban
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        Papan rencana harian: direncanakan → dikerjakan → selesai → diverifikasi.
+      </p>
+    </div>
+    <button @click="openRencanaForm()"
+            class="btn btn-primary self-start md:self-auto">
+      <i class="fa-solid fa-plus"></i> Rencana Baru
+    </button>
+  </div>
+
+  <!-- Filter (kit app-filter-bar; Reset sudah bawaan kit) -->
+  <app-filter-bar :filters="rencanaFilterDefs" v-model="rencanaFilters"
+                  @change="onRencanaFilterChange" @reset="onRencanaFilterChange"></app-filter-bar>
+
+  <!-- Papan 5 kolom -->
+  <app-skeleton v-if="rencanaLoading" type="cards" :count="5"></app-skeleton>
+  <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 items-start">
+    <div v-for="kol in [
+        { key: 'direncanakan', label: 'Direncanakan', ikon: 'fa-circle-dot', warna: 'text-slate-500' },
+        { key: 'dikerjakan', label: 'Dikerjakan', ikon: 'fa-hammer', warna: 'text-amber-500' },
+        { key: 'selesai', label: 'Selesai', ikon: 'fa-circle-check', warna: 'text-emerald-500' },
+        { key: 'diverifikasi', label: 'Diverifikasi', ikon: 'fa-user-check', warna: 'text-indigo-500' },
+        { key: 'batal', label: 'Batal', ikon: 'fa-ban', warna: 'text-rose-400' }
+      ]" :key="kol.key"
+         :class="['kanban-col', kol.key === 'batal' ? 'kanban-col-mute' : '']">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+          <i class="fa-solid" :class="[kol.ikon, kol.warna]"></i> {{ kol.label }}
+        </p>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+          {{ kanbanKolom[kol.key].length }}
+        </span>
+      </div>
+
+      <div class="space-y-2">
+        <div v-for="r in kanbanKolom[kol.key]" :key="r.id" class="kanban-card">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-xs font-bold leading-snug text-slate-800 dark:text-slate-100">{{ r.rencana_hasil }}</p>
+            <app-badge class="shrink-0" size="sm"
+                       :status="badgePrioritas_(r.prioritas).status"
+                       :label="badgePrioritas_(r.prioritas).label"></app-badge>
+          </div>
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+            <span><i class="fa-regular fa-calendar mr-0.5"></i>{{ formatDateDisplay(r.tanggal_rencana) }}</span>
+            <span v-if="isAdmin && r.pegawai_id">· {{ namaPegawai(r.pegawai_id) }}</span>
+          </div>
+          <div class="mt-1.5 flex flex-wrap gap-1">
+            <app-badge size="sm" status="info" :label="namaRhk_(r.rhk_id)"></app-badge>
+            <app-badge v-if="r.jenis_tugas_id" size="sm" :label="namaJenisTugas_(r.jenis_tugas_id)"></app-badge>
+          </div>
+          <!-- Aksi: transisi status (FR-06) + realisasi + edit/hapus -->
+          <div class="mt-2.5 pt-2 border-t flex flex-wrap gap-1.5 border-slate-100 dark:border-slate-800">
+            <button v-for="t in transisiRencana_(r.status)" :key="t" @click="moveStatusRencana(r, t)"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-black border transition-all cursor-pointer capitalize"
+                    :class="t === 'batal'
+                      ? 'border-rose-300 text-rose-500 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-900/30'
+                      : 'border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/30'">
+              <i class="fa-solid fa-arrow-right mr-0.5"></i>{{ t }}
+            </button>
+            <button v-if="r.status === 'dikerjakan' || r.status === 'selesai'" @click="buatRealisasiDariRencana(r)"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-black border border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30 transition-all cursor-pointer">
+              <i class="fa-solid fa-pen mr-0.5"></i>Isi Realisasi
+            </button>
+            <button @click="openRencanaForm(r)" class="btn-icon ml-auto">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button @click="deleteRencana(r)" class="btn-icon btn-icon-danger">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <p v-if="!kanbanKolom[kol.key].length" class="text-[11px] text-slate-400 text-center py-6">
+          {{ kol.key === 'direncanakan' ? 'Klik "+ Rencana Baru"' : 'Kosong' }}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ==================== MODE 2: KALENDER ==================== -->
+<div v-if="currentPage === 'rencana_kalender'" class="space-y-4 animate-fade-in select-none">
+
+  <!-- Header + navigasi bulan -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight flex items-center gap-2 text-slate-800 dark:text-white">
+        <i class="fa-solid fa-calendar-days text-emerald-600 dark:text-emerald-400"></i> Rencana Kalender
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        Klik sel tanggal untuk membuka papan Kanban pada tanggal itu.
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <select v-if="isAdmin" v-model="rencanaFilters.pegawai_id" @change="loadRencanaKalender()"
+              class="input !py-1.5 !text-xs min-w-40">
+        <option value="">Semua pegawai</option>
+        <option v-for="p in pegawaiList" :key="p.pegawai_id || p.id" :value="p.pegawai_id || p.id">{{ p.nama_lengkap || p.nama }}</option>
+      </select>
+      <div class="flex items-center gap-1">
+        <button @click="calGeser(-1)" class="w-9 h-9 rounded-xl border text-sm font-black transition-all cursor-pointer border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <span class="min-w-40 text-center text-sm font-black text-slate-800 dark:text-white">{{ calLabel }}</span>
+        <button @click="calGeser(1)" class="w-9 h-9 rounded-xl border text-sm font-black transition-all cursor-pointer border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+      <button @click="openRencanaForm(null, (todayIso_ ? todayIso_() : ''))" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Rencana
+      </button>
+    </div>
+  </div>
+
+  <!-- Grid kalender -->
+  <div class="card overflow-hidden !p-0">
+    <app-skeleton v-if="calLoading" type="table"></app-skeleton>
+    <template v-else>
+      <!-- Kepala hari (Senin pertama) — gap & padding sama dgn grid sel -->
+      <div class="grid grid-cols-7 gap-2 px-2 pt-2 pb-2 text-center text-[10px] font-black uppercase tracking-wider border-b text-slate-500 border-slate-200 bg-slate-50 dark:text-slate-400 dark:border-slate-800 dark:bg-slate-900">
+        <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div>
+        <div class="text-amber-500">Sab</div><div class="text-rose-400">Min</div>
+      </div>
+      <div class="grid grid-cols-7 gap-2 p-2 bg-slate-100/60 dark:bg-slate-950/40">
+        <div v-for="sel in calCells" :key="sel.key"
+             @click="bukaKanbanTanggal(sel.key)"
+             :class="['cal-cell', sel.bulanLain ? 'cal-cell-out' : '', sel.hariIni ? 'cal-cell-today' : '']">
+          <p class="text-[11px] font-black mb-1.5"
+             :class="[sel.bulanLain ? 'text-slate-300 dark:text-slate-600' : 'text-slate-700 dark:text-slate-200', sel.hariIni ? '!text-emerald-600 dark:!text-emerald-400' : '']">
+            {{ sel.angka }}
+          </p>
+          <div>
+            <span v-for="c in sel.chips.slice(0, 3)" :key="c.id"
+                  :class="['cal-chip', 'cal-chip-' + String(c.status || 'direncanakan').toLowerCase()]">
+              {{ c.rencana_hasil }}
+            </span>
+            <p v-if="sel.chips.length > 3" class="text-[9px] font-black text-slate-400 px-1">+{{ sel.chips.length - 3 }} lagi</p>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Legenda status (kit app-badge, cermin warna chip) -->
+  <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+    <app-badge size="sm" :label="'Direncanakan'"></app-badge>
+    <app-badge size="sm" status="proses" label="Dikerjakan"></app-badge>
+    <app-badge size="sm" status="emerald" label="Selesai"></app-badge>
+    <app-badge size="sm" status="purple" label="Diverifikasi"></app-badge>
+    <span class="text-slate-400 px-1">(batal disembunyikan dari kalender)</span>
+  </div>
+</div>
