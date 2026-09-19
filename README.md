@@ -101,8 +101,6 @@ si-lahar/
     └── J_App.html            # Bootstrap AppCore.create + mixins
 ```
 
-> **Catatan**: `V_Analisa.html` masih ada di `src/` sebagai **arsip** (tidak di-include di `Index.html`). Kandidat dihapus di cleanup lanjut.
-
 ---
 
 ## 🏛️ Arsitektur
