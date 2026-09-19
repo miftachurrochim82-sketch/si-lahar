@@ -1,0 +1,123 @@
+<script>
+// ============================================================
+// SILAHAR - J_App.html (G18c-2 KIT ALIGNMENT, 2026-09-18)
+// Bootstrap via AppCore.create (pola si-kompetensi).
+// AppCore (app-core.min.js v2.7.5) menyediakan: data shell/auth
+// (token, currentUser, currentPage, isDarkMode, toasts, dll.),
+// computed isAdmin/isVerifikator, method callServer, auth SSO,
+// navigateTo/toggleSidebar/toggleDarkMode/logout/goToPlatform,
+// loadMasterSIMPEG, lookup nama*, showToast, format*, export*,
+// mounted() SSO — semua dengan kunci storage silahar_* yang sama.
+// Logika khusus app tetap di J_State/J_Api/J_Actions/J_Export/J_Kinerja
+// dan digabung lewat mixins di bawah.
+//
+// G18c-2: menu 'tentang' DIHAPUS (selaras si-kompetensi 7-menu;
+// info aplikasi dilebur ke footer Dashboard). renderKinerjaCharts
+// hilang — chart kini komponen kit <app-chart-*> yang dark-mode aware.
+// Pengaturan = modul kit <app-settings> (self-contained). Profil =
+// Paspor Kinerja (G19b): loadPaspor() via onNavigate.
+// ============================================================
+
+// Gabungkan seluruh modul JavaScript ke dalam SilaharMixin
+const SilaharMixin = {
+  data() {
+    return Object.assign({}, window.SilaharState.data(), window.SilaharKinerja.data());
+  },
+  computed: Object.assign({}, window.SilaharState.computed, window.SilaharKinerja.computed),
+  methods: Object.assign(
+    {},
+    window.SilaharApi.methods,
+    window.SilaharHelpers.methods,   // G18c-2: helper murni (pola kompet)
+    window.SilaharActions.methods,
+    window.SilaharExport.methods,
+    window.SilaharKinerja.methods   // G18c: e-Kinerja Harian
+  )
+};
+
+// Inisialisasi Aplikasi Terpadu SILAHAR
+const app = AppCore.create({
+  appCode: 'SILAHAR',
+  appTitle: 'SILAHAR',
+  initialPage: 'dashboard',
+  storagePrefix: 'silahar',
+  platformUrl: 'https://script.google.com/macros/s/AKfycbwh_OUVqmxLcuF81FHmPZtT33Wrm8Ce9Da1SQ3hfkSr7gM5P8ofyAlHSgW40mq3eo-PoQ/exec',
+
+  brand: {
+    title: 'SILAHAR',
+    subtitle: 'Satpol PP & Damkar',
+    logoIcon: 'fa-solid fa-shield-halved',
+    logoChar: 'SH',
+    logoSvg: ''
+  },
+
+  // Menu sidebar v2 final (05_UIUX + keputusan G18c-2: Tentang dihapus;
+  // kanban & kalender = MENU TERPISAH; + SKP Bulanan; + Master Kinerja).
+  menu: [
+    { name: 'Kinerja', items: [
+      { id: 'dashboard', label: 'Dashboard Kinerja', icon: 'fa-solid fa-gauge-high' },
+      { id: 'rencana_kanban', label: 'Rencana Kanban', icon: 'fa-solid fa-table-columns' },
+      { id: 'rencana_kalender', label: 'Rencana Kalender', icon: 'fa-solid fa-calendar-days' },
+      { id: 'realisasi', label: 'Realisasi Harian', icon: 'fa-solid fa-clipboard-check' },
+      { id: 'skp_bulanan', label: 'SKP Bulanan', icon: 'fa-solid fa-file-invoice' },
+      { id: 'verifikasi', label: 'Antrian Verifikasi', icon: 'fa-solid fa-user-check', adminOnly: true }
+    ]},
+    { name: 'Master', items: [
+      { id: 'master_kinerja', label: 'Master Kinerja', icon: 'fa-solid fa-database' }
+    ]},
+    { name: 'Pribadi', items: [
+      { id: 'profil', label: 'Profil Saya', icon: 'fa-solid fa-user-tie' }
+    ]},
+    { name: 'Sistem', items: [
+      { id: 'pengaturan', label: 'Pengaturan', icon: 'fa-solid fa-gear', adminOnly: true }
+    ]}
+  ],
+
+  pageIcons: {
+    dashboard: 'fa-solid fa-gauge-high',
+    rencana_kanban: 'fa-solid fa-table-columns',
+    rencana_kalender: 'fa-solid fa-calendar-days',
+    realisasi: 'fa-solid fa-clipboard-check',
+    skp_bulanan: 'fa-solid fa-file-invoice',
+    verifikasi: 'fa-solid fa-user-check',
+    master_kinerja: 'fa-solid fa-database',
+    profil: 'fa-solid fa-user-tie',
+    pengaturan: 'fa-solid fa-gear'
+  },
+
+  // Guard admin untuk 'pengaturan' sudah built-in di AppCore.navigateTo.
+  // Profil/Pengaturan = modul kit self-contained (tidak perlu load manual).
+  onNavigate(vm, page) {
+    // G18c: halaman e-Kinerja selalu reload (data segar antar pegawai/verifikasi)
+    if (page === 'dashboard') {
+      vm.loadDashboardKinerja();
+    } else if (page === 'rencana_kanban') {
+      if (!vm.rencanaFilters.tanggal) vm.rencanaFilters.tanggal = vm.todayIso_ ? vm.todayIso_() : '';
+      vm.loadRencana();
+    } else if (page === 'rencana_kalender') {
+      vm.loadRencanaKalender();
+    } else if (page === 'realisasi') {
+      vm.loadRealisasi(1);
+    } else if (page === 'skp_bulanan') {
+      vm.loadRekap();
+    } else if (page === 'verifikasi') {
+      vm.loadAntrian();
+    } else if (page === 'master_kinerja') {
+      vm.loadMasterKinerja();
+    } else if (page === 'profil') {
+      vm.loadPaspor();   // G19b: Paspor Kinerja (docs/09) — bukan lagi modul self-contained
+    }
+  },
+
+  // Pindahan dari initApp() lama. loadMasterSIMPEG (pengganti
+  // loadReferensi) sudah dipanggil AppCore.runInitApp SEBELUM hook
+  // ini; dataLoaded di-set AppCore setelah hook selesai.
+  async initApp(vm) {
+    await vm.loadDashboardKinerja();
+  },
+
+  mixins: [SilaharMixin]
+});
+
+app.mount('#app');
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d127639895f93c',t:'MTc4OTc0MjkzMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>

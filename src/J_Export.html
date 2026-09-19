@@ -1,0 +1,70 @@
+<script>
+// ============================================================
+// SILAHAR - J_Export.html (G18c-2 KIT ALIGNMENT, 2026-09-18)
+// Export Excel/PDF via EXPORTER KIT AppCore: this.exportExcel(data,
+// filename, sheetName) & this.exportPDF(columns, data, filename,
+// title) — SheetJS/jsPDF/AutoTable dimuat ON-DEMAND oleh
+// AppCore.loadLib (script statis di Index sudah dihapus).
+//
+// G18c-2: method export v1 (exportLaporanExcel/exportPegawai*/
+// exportRiwayat*) DIHAPUS — view v1-nya (V_MasterData/V_Analisa/
+// laporan lama) sudah tidak di-include Index sejak G18c.
+// ============================================================
+window.SilaharExport = {
+  methods: {
+
+    // ---- Realisasi Harian (V_Realisasi) ----
+    async exportRealisasiExcel() {
+      const rows = (this.realisasiList || []).map(r => ({
+        tanggal: String(r.tanggal || '').slice(0, 10),
+        pegawai: this.namaPegawai(r.pegawai_id),
+        rhk: r.rhk_id ? this.namaRhk_(r.rhk_id) : '(pra-RHK)',
+        jenis_tugas: this.namaJenisTugas_(r.jenis_tugas_id),
+        uraian_hasil: r.deskripsi,
+        volume: r.volume,
+        satuan: this.namaSatuan_(r.satuan_id),
+        jam_mulai: r.waktu_mulai || '',
+        jam_selesai: r.waktu_selesai || '',
+        bukti: (r.lampiran || []).length,
+        status_verifikasi: this.badgeVerif_(r.status_verifikasi).label
+      }));
+      await this.exportExcel(rows, 'Realisasi_Harian_' + this.todayIso_() + '.xlsx', 'Realisasi Harian');
+    },
+
+    // ---- SKP Bulanan (V_SkpBulanan) ----
+    async exportRekapExcel() {
+      const rows = (this.rekapList || []).map(r => ({
+        periode: r.periode,
+        pegawai: this.namaPegawai(r.pegawai_id),
+        total_rencana: r.total_rencana,
+        total_realisasi: r.total_realisasi,
+        total_diverifikasi: r.total_diverifikasi,
+        total_revisi: r.total_revisi,
+        capaian_pct: r.capaian_pct,
+        kandidat_predikat: r.kandidat_predikat,
+        status_rekap: r.status_rekap,
+        generated_at: r.generated_at
+      }));
+      await this.exportExcel(rows, 'SKP_Bulanan_' + (this.rekapPeriode || this.todayIso_()) + '.xlsx', 'SKP Bulanan');
+    },
+
+    async exportRekapPDF() {
+      const columns = [
+        { label: 'Periode', key: 'periode' },
+        { label: 'Pegawai', field: r => this.namaPegawai(r.pegawai_id) },
+        { label: 'Rencana', key: 'total_rencana' },
+        { label: 'Realisasi', key: 'total_realisasi' },
+        { label: 'Verif', key: 'total_diverifikasi' },
+        { label: 'Revisi', key: 'total_revisi' },
+        { label: 'Capaian', field: r => (r.capaian_pct || 0) + '%' },
+        { label: 'Predikat', key: 'kandidat_predikat' }
+      ];
+      await this.exportPDF(columns, this.rekapList || [],
+        'SKP_Bulanan_' + (this.rekapPeriode || this.todayIso_()) + '.pdf',
+        'Laporan SKP Bulanan — ' + (this.rekapPeriode || ''));
+    }
+
+  }
+};
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cfb66e688ac9da',t:'MTc4OTcyNzgxOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>

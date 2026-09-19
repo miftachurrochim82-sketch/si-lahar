@@ -1,0 +1,73 @@
+<script>
+// ============================================================
+// SILAHAR - J_Helpers.html (G18c-2 STRUCTURE ALIGNMENT, 2026-09-18)
+// Helper MURNI: lookup master, peta status->badge kit, guard transisi,
+// matcher pencarian. Pola si-kompetensi (J_Helpers): helper dipisah
+// dari loader/aksi supaya satu tempat audit & pola antar-app seragam
+// (keputusan pemilik 2026-09-18: pola beda = sulit telusuri masalah).
+// Digabung ke mixin di J_App (window.SilaharHelpers.methods).
+// ============================================================
+window.SilaharHelpers = {
+  methods: {
+    // ============ HELPER LOOKUP & BADGE (kit <app-badge>) ============
+    // Peta status → {status, label} utk app-badge. status='' = slate default.
+    defPegawaiFilter_() {
+      return { key: 'pegawai_id', label: 'Pegawai', type: 'select',
+        options: (this.pegawaiList || []).map(p => ({ value: String(p.pegawai_id || p.id), label: p.nama_lengkap || p.nama || String(p.pegawai_id || p.id) })) };
+    },
+    badgeRencana_(s) {
+      const peta = {
+        direncanakan: { status: '', label: 'Direncanakan' },
+        dikerjakan:   { status: 'proses', label: 'Dikerjakan' },
+        selesai:      { status: 'emerald', label: 'Selesai' },
+        diverifikasi: { status: 'purple', label: 'Diverifikasi' },
+        batal:        { status: 'ditolak', label: 'Batal' }
+      };
+      return peta[String(s || 'direncanakan').toLowerCase()] || peta.direncanakan;
+    },
+    badgePrioritas_(p) {
+      const peta = {
+        biasa:    { status: '', label: 'Biasa' },
+        penting:  { status: 'menunggu', label: 'Penting' },
+        mendesak: { status: 'ditolak', label: 'Mendesak' }
+      };
+      return peta[String(p || 'biasa').toLowerCase()] || peta.biasa;
+    },
+    badgeVerif_(s) {
+      const peta = {
+        menunggu:  { status: 'menunggu', label: 'Menunggu' },
+        disetujui: { status: 'disetujui', label: 'Disetujui' },
+        revisi:    { status: 'revisi', label: 'Revisi' }
+      };
+      return peta[String(s || 'menunggu').toLowerCase()] || peta.menunggu;
+    },
+    namaRhk_(id) {
+      if (!id) return '—';
+      const r = (this.rhkList || []).find(x => String(x.id) === String(id));
+      return r ? r.nama_rhk : id;
+    },
+    namaJenisTugas_(id) {
+      if (!id) return '—';
+      const r = (this.jenisTugasList || []).find(x => String(x.id) === String(id));
+      return r ? r.nama : id;
+    },
+    namaSatuan_(id) {
+      if (!id) return '';
+      const r = (this.satuanList || []).find(x => String(x.id) === String(id));
+      return r ? r.nama : id;
+    },
+    // Transisi legal non-admin (cermin FR-06 backend, utk tombol kartu)
+    transisiRencana_(status) {
+      if (this.isAdmin) return ['direncanakan', 'dikerjakan', 'selesai', 'batal'].filter(s => s !== String(status || '').toLowerCase());
+      const peta = { direncanakan: ['dikerjakan', 'batal'], dikerjakan: ['selesai', 'batal'], selesai: [], diverifikasi: [], batal: [] };
+      return peta[String(status || 'direncanakan').toLowerCase()] || [];
+    },
+    _masterMatchVals_(vals) {
+      const q = String((this.masterFilters || {}).search || '').toLowerCase().trim();
+      if (!q) return true;
+      return vals.some(v => String(v == null ? '' : v).toLowerCase().indexOf(q) >= 0);
+    },
+  }
+};
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d06ab01906d47e',t:'MTc4OTczNTIwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
