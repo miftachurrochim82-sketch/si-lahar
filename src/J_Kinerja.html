@@ -1,9 +1,9 @@
 <script>
 // ============================================================
-// SILAHAR - J_Kinerja.html (G18c-2 KIT ALIGNMENT, 2026-09-18)
+// SILAHAR - J_Kinerja.html (G18c-2 KIT ALIGNMENT, 2026-09-19)
 // Modul e-Kinerja Harian: state + loader + aksi untuk menu v2
 // (Dashboard Kinerja, Rencana Kanban, Rencana Kalender, Realisasi
-// Harian, SKP Bulanan, Master Kinerja, Antrian Verifikasi).
+// Harian, SKP Bulanan, Master Terpadu, Antrian Verifikasi).
 // Dipakai aksi backend 04_KinerjaUtils.gs + 05..09_*Api.gs per domain (G18b).
 //
 // PERUBAHAN G18c-2 vs G18c:
@@ -14,6 +14,22 @@
 //    <app-chart-bar bare> / <app-chart-doughnut bare> (kit memuat
 //    Chart.js sendiri lewat AppCore.loadLib('chart')).
 //  - Helper badge Tailwind manual → peta status <app-badge> kit.
+//
+// 2026-09-19 (Merge V_Master + V_Rencana):
+//  - activeMasterKinerjaTab default 'rhk' → 'laporan'.
+//  - refreshMasters() juga reload referensi SIMPEG (utk picker).
+//  - loadMasterKinerja() auto-load laporan v1 saat tab default.
+//  - showRencanaFormKal DIHAPUS (modal rencana tunggal, dipakai
+//    kanban & kalender).
+//
+// 2026-09-19 (Review owner: 3 tab referensi SIMPEG dihapus):
+//  - V_Master.html sekarang 4 tab: Laporan, RHK/SKP, Jenis Tugas, Satuan.
+//  - Tab Pegawai/Jabatan/Unit Kerja DIHAPUS dari V_Master — referensi
+//    SIMPEG dikelola di SI-PLATFORM (read-only) dan sudah cukup diakses
+//    via picker (<app-pegawai-picker>) & lookup (namaPegawai/namaUnit/
+//    namaJabatan).
+//  - Computed pegawaiRefFiltered/jabatanRefFiltered/unitRefFiltered
+//    DIHAPUS karena pemakainya sudah tidak ada.
 // ============================================================
 window.SilaharKinerja = {
   data() {
@@ -48,7 +64,8 @@ window.SilaharKinerja = {
       calMonth: '',                  // 'yyyy-MM'
       calList: [],
       calLoading: false,
-      showRencanaFormKal: false,     // modal form rencana khusus kalender
+      // G18c-2 (2026-09-19): showRencanaFormKal DIHAPUS —
+      // modal rencana tunggal (showRencanaForm) dipakai kanban & kalender.
 
       // ---- Realisasi Harian (FR-10..14) — filter v-model <app-filter-bar> ----
       realisasiList: [],
@@ -79,10 +96,13 @@ window.SilaharKinerja = {
       showRekapDetail: false,
       rekapDetail: null,
 
-      // ---- Master Kinerja (FR-01..FR-03) ----
-      activeMasterKinerjaTab: 'rhk',
+      // ---- Master Terpadu (FR-01..FR-03) ----
+      // G18c-2 (2026-09-19): 4 tab (Laporan, RHK/SKP, Jenis Tugas, Satuan).
+      // Tab awal = 'laporan'.
+      activeMasterKinerjaTab: 'laporan',
       masterSaving: false,
-      // G18c-2 review (adopsi si-kompetensi): filter klien utk tab master
+      // Filter klien utk tab master (dipakai semua tab kecuali 'laporan'
+      // yang punya filter server-side sendiri: laporanSearch/laporanPage).
       masterFilters: { search: '', tahun: '', status: '' },
       showRhkForm: false,
       rhkForm: { id: '', pegawai_id: '', periode_tahun: new Date().getFullYear(), jenis_rhk: 'utama', klasifikasi: 'individu', nama_rhk: '', indikator: '', satuan_id: '', target_tahunan: '', rhk_atasan_id: '', status: 'aktif' },
@@ -275,6 +295,12 @@ window.SilaharKinerja = {
         return this._masterMatchVals_([r.kode, r.nama, r.keterangan]);
       });
     },
+
+    // Catatan (2026-09-19): computed referensi SIMPEG
+    // (pegawaiRefFiltered, jabatanRefFiltered, unitRefFiltered) DIHAPUS
+    // karena tab referensi di V_Master.html sudah dihapus.
+    // Referensi SIMPEG tetap tersedia via AppCore.loadMasterSIMPEG
+    // untuk picker & lookup (namaPegawai/namaUnit/namaJabatan).
   },
 
   methods: {
@@ -321,6 +347,7 @@ window.SilaharKinerja = {
         if (res.success) this.pasporDashboard = res.data || null;
       } catch (e) { console.error(e); }
     },
+
     // ============ MASTER PICKER (dipakai banyak halaman) ============
     async ensureMasters_(force = false) {
       if (!force && this.rhkList.length && this.jenisTugasList.length && this.satuanList.length) return;
@@ -386,9 +413,8 @@ window.SilaharKinerja = {
           rhk_id: '', jenis_tugas_id: '', rencana_hasil: '', prioritas: 'biasa'
         };
       }
-      // Modal host: kanban pakai showRencanaForm; kalender pakai showRencanaFormKal
-      if (this.currentPage === 'rencana_kalender') this.showRencanaFormKal = true;
-      else this.showRencanaForm = true;
+      // G18c-2: modal rencana tunggal (showRencanaForm) — kanban & kalender sama.
+      this.showRencanaForm = true;
     },
     async saveRencana() {
       this.rencanaSaving = true;
@@ -396,7 +422,6 @@ window.SilaharKinerja = {
         const res = await this.callServer('save_rencana', { record: this.rencanaForm });
         if (res.success) {
           this.showRencanaForm = false;
-          this.showRencanaFormKal = false;
           if (this.currentPage === 'rencana_kalender') await this.loadRencanaKalender();
           else await this.loadRencana();
           this.showToast('Rencana berhasil disimpan');
@@ -590,18 +615,32 @@ window.SilaharKinerja = {
       this.showRekapDetail = true;
     },
 
-    // ============ MASTER KINERJA (FR-01..FR-03) ============
-    async loadMasterKinerja() { await this.ensureMasters_(true); },
-    // Tombol refresh (adopsi praktik baik Master si-kompetensi)
+    // ============ MASTER TERPADU (FR-01..FR-03) ============
+    // G18c-2 (2026-09-19): saat tab default 'laporan', auto-load list laporan v1
+    // (method loadLaporan dari J_Api). Tab kinerja di-load via computed.
+    async loadMasterKinerja() {
+      await this.ensureMasters_(true);
+      if (this.activeMasterKinerjaTab === 'laporan' && typeof this.loadLaporan === 'function') {
+        try { await this.loadLaporan(1); } catch (e) { /* tolerant */ }
+      }
+    },
+    // Tombol refresh: reload master kinerja + referensi SIMPEG (utk picker).
     async refreshMasters() {
       await this.ensureMasters_(true);
+      if (typeof this.loadMasterSIMPEG === 'function') {
+        try { await this.loadMasterSIMPEG(true); } catch (e) { /* tolerant */ }
+      }
+      // Jika sedang di tab laporan, reload juga list laporan v1.
+      if (this.activeMasterKinerjaTab === 'laporan' && typeof this.loadLaporan === 'function') {
+        try { await this.loadLaporan(this.laporanPage || 1); } catch (e) { /* tolerant */ }
+      }
       this.showToast('Master dimuat ulang');
     },
-    // CTA baris filter master: buka form sesuai tab aktif
+    // CTA baris filter master: buka form sesuai tab aktif (kinerja only).
     openFormPerTab() {
       if (this.activeMasterKinerjaTab === 'rhk') this.openRhkForm();
       else if (this.activeMasterKinerjaTab === 'jenis') this.openJenisForm();
-      else this.openSatuanForm();
+      else if (this.activeMasterKinerjaTab === 'satuan') this.openSatuanForm();
     },
 
     // ---- RHK ----
