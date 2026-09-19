@@ -1,0 +1,677 @@
+<script>
+// ============================================================
+// SILAHAR - J_Kinerja.html (G18c-2 KIT ALIGNMENT, 2026-09-18)
+// Modul e-Kinerja Harian: state + loader + aksi untuk menu v2
+// (Dashboard Kinerja, Rencana Kanban, Rencana Kalender, Realisasi
+// Harian, SKP Bulanan, Master Kinerja, Antrian Verifikasi).
+// Dipakai aksi backend 04_KinerjaUtils.gs + 05..09_*Api.gs per domain (G18b).
+//
+// PERUBAHAN G18c-2 vs G18c:
+//  - Filter jadi OBJEK v-model <app-filter-bar> (rencanaFilters,
+//    realisasiFilters) + computed *FilterDefs (pola si-kompetensi).
+//  - renderKinerjaCharts()/Chart.js manual DIHAPUS → data chart via
+//    computed (kdTrenLabels/kdTrenDatasets/kdRhk*) dikonsumsi
+//    <app-chart-bar bare> / <app-chart-doughnut bare> (kit memuat
+//    Chart.js sendiri lewat AppCore.loadLib('chart')).
+//  - Helper badge Tailwind manual → peta status <app-badge> kit.
+// ============================================================
+window.SilaharKinerja = {
+  data() {
+    return {
+      // ---- Dashboard Kinerja (FR-19) ----
+      kdData: null,
+      kdLoading: false,
+      kdAnalisa: null,          // analisa_kinerja (admin) untuk papan tim
+
+      // ---- Paspor Kinerja (G19b, docs/09) — V_Profil halaman bisnis ----
+      profilTab: 'transkrip',
+      profilPeriode: '',            // 'yyyy-MM'; kosong = bulan ini (diisi loadPaspor)
+      pasporLoading: false,
+      pasporDashboard: null,        // dashboard_kinerja {periode,kartu,...} (self-scoped)
+      pasporRealisasi: [],          // get_realisasi_list (transkrip, scope diri)
+      pasporRekap: [],              // get_rekap_list (riwayat SKP Bulanan, scope diri)
+      pasporRhk: [],                // get_rhk_list (scope diri; difilter aktif+tahun ini)
+      pasporTanpaTautan: false,     // admin tanpa pegawai_id & tanpa cocok email SIMPEG
+
+      // ---- Master picker (RHK/jenis/satuan) ----
+      rhkList: [], jenisTugasList: [], satuanList: [], mastersLoading: false,
+
+      // ---- Rencana: Kanban (FR-07) — filter v-model <app-filter-bar> ----
+      rencanaList: [],
+      rencanaLoading: false,
+      rencanaFilters: { tanggal: '', pegawai_id: '', status: '' },
+      showRencanaForm: false,
+      rencanaSaving: false,
+      rencanaForm: { id: '', tanggal_rencana: '', rhk_id: '', jenis_tugas_id: '', rencana_hasil: '', prioritas: 'biasa' },
+
+      // ---- Rencana: Kalender (FR-08) ----
+      calMonth: '',                  // 'yyyy-MM'
+      calList: [],
+      calLoading: false,
+      showRencanaFormKal: false,     // modal form rencana khusus kalender
+
+      // ---- Realisasi Harian (FR-10..14) — filter v-model <app-filter-bar> ----
+      realisasiList: [],
+      realisasiLoading: false,
+      realisasiPage: 1,
+      realisasiTotalPages: 1,
+      realisasiTotalData: 0,
+      realisasiFilters: { search: '', tanggal: '', pegawai_id: '', rhk_id: '', status_verifikasi: '' },
+      _searchTimerRealisasi: null,
+      showRealisasiForm: false,
+      realisasiSaving: false,
+      realisasiForm: {
+        id: '', tanggal: '', rhk_id: '', rencana_id: '', jenis_tugas_id: '',
+        uraian_hasil: '', volume: '', satuan_id: '', waktu_mulai: '', waktu_selesai: '',
+        lampiran: []
+      },
+
+      // ---- Verifikasi (FR-15/16) ----
+      antrianList: [],
+      antrianLoading: false,
+      antrianTotal: 0,
+
+      // ---- SKP Bulanan (FR-17/18) ----
+      rekapList: [],
+      rekapLoading: false,
+      rekapPeriode: '',
+      rekapGenerating: false,
+      showRekapDetail: false,
+      rekapDetail: null,
+
+      // ---- Master Kinerja (FR-01..FR-03) ----
+      activeMasterKinerjaTab: 'rhk',
+      masterSaving: false,
+      // G18c-2 review (adopsi si-kompetensi): filter klien utk tab master
+      masterFilters: { search: '', tahun: '', status: '' },
+      showRhkForm: false,
+      rhkForm: { id: '', pegawai_id: '', periode_tahun: new Date().getFullYear(), jenis_rhk: 'utama', klasifikasi: 'individu', nama_rhk: '', indikator: '', satuan_id: '', target_tahunan: '', rhk_atasan_id: '', status: 'aktif' },
+      showJenisForm: false,
+      jenisForm: { id: '', kode: '', nama: '', keterangan: '', status: 'aktif' },
+      showSatuanForm: false,
+      satuanForm: { id: '', kode: '', nama: '', keterangan: '', status: 'aktif' }
+    };
+  },
+
+  computed: {
+    // ============ PASPOR KINERJA (G19b) ============
+    // Opsi 12 bulan terakhir — DINAMIS (konvensi 05_UIUX: jangan hardcode).
+    profilPeriodeOptions() {
+      const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const now = new Date();
+      const opts = [];
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        opts.push({ value: val, label: BULAN[d.getMonth()] + ' ' + d.getFullYear() });
+      }
+      return opts;
+    },
+    pasporKartu() { return (this.pasporDashboard && this.pasporDashboard.kartu) || null; },
+    pasporRhkAktif() {
+      const th = String(new Date().getFullYear());
+      return this.pasporRhk.filter(r =>
+        String(r.status || 'aktif').toLowerCase() === 'aktif' && String(r.periode_tahun || '') === th);
+    },
+    // v1.1 (fix review 2026-09-18): akun SSO bisa TIDAK punya pegawai_id
+    // (payload token platform minim) → cocokkan email akun ke referensi
+    // PEGAWAI SIMPEG (dimuat AppCore saat init) sebagai jangkar identitas
+    // dan penyaring "diri sendiri" di klien.
+    pasporPegawaiRef() {
+      const email = String((this.currentUser || {}).email || '').toLowerCase().trim();
+      if (!email) return null;
+      return (this.pegawaiList || []).find(
+        p => String(p.email || '').toLowerCase().trim() === email) || null;
+    },
+    // true bila token SSO membawa pegawai_id (scope server jalan penuh).
+    pasporTautanServer() { return !!String((this.currentUser || {}).pegawai_id || '').trim(); },
+    pasporPegawaiId() {
+      const u = this.currentUser || {};
+      const ref = this.pasporPegawaiRef;
+      return String(u.pegawai_id || (ref && (ref.pegawai_id || ref.id)) || '').trim();
+    },
+    // Identitas kartu paspor: myProfile (get_my_profile enriched) → currentUser
+    // → referensi PEGAWAI SIMPEG (via email). Jabatan/unit di-resolve dari
+    // referensi JABATAN/UNIT_KERJA bila ref hanya membawa *_id.
+    pasporIdentitas() {
+      const p = this.myProfile || {};
+      const u = this.currentUser || {};
+      const ref = this.pasporPegawaiRef || {};
+      const namaDari = (list, id, keys) => {
+        const row = (list || []).find(x => String(x[jk(x)] || '') === String(id || ''));
+        function jk(x) { return Object.keys(x).find(k => /_id$/.test(k)) || 'id'; }
+        if (!row) return '';
+        for (const k of keys) if (row[k]) return row[k];
+        return '';
+      };
+      return {
+        nama: p.nama || u.nama || u.username || ref.nama_lengkap || ref.nama || 'Pegawai',
+        nip: p.nip || u.nip || ref.nip || '',
+        jabatan: p.jabatan_nama || u.jabatan || ref.jabatan_nama ||
+                 namaDari(this.jabatanList, ref.jabatan_id, ['nama_jabatan', 'jabatan_nama', 'nama']) || '',
+        unit: p.unit_nama || u.unit || ref.unit_nama ||
+              namaDari(this.unitList, ref.unit_id, ['nama_unit', 'unit_nama', 'nama']) || '',
+        pangkat: p.pangkat_golongan || ref.pangkat_golongan || '',
+        role: u.role || ''
+      };
+    },
+    // ---- Definisi filter <app-filter-bar> (pola si-kompetensi B4) ----
+    // Opsi pegawai hanya utk admin (backend sudah memaksa non-admin ke dirinya).
+    rencanaFilterDefs() {
+      const defs = [
+        { key: 'tanggal', label: 'Tanggal', type: 'date' },
+        { key: 'status', label: 'Status', type: 'select', options: [
+          { value: 'direncanakan', label: 'Direncanakan' },
+          { value: 'dikerjakan', label: 'Dikerjakan' },
+          { value: 'selesai', label: 'Selesai' },
+          { value: 'diverifikasi', label: 'Diverifikasi' },
+          { value: 'batal', label: 'Batal' }
+        ] }
+      ];
+      if (this.isAdmin) defs.splice(1, 0, this.defPegawaiFilter_());
+      return defs;
+    },
+    realisasiFilterDefs() {
+      const defs = [
+        { key: 'search', label: 'Pencarian', type: 'text', placeholder: 'Cari uraian hasil...', span: 2 },  // v2.8.0 F1
+        { key: 'tanggal', label: 'Tanggal', type: 'date' },
+        { key: 'rhk_id', label: 'RHK', type: 'select', options: (this.rhkList || []).map(r => ({ value: String(r.id), label: r.nama_rhk })) },
+        { key: 'status_verifikasi', label: 'Verifikasi', type: 'select', options: [
+          { value: 'menunggu', label: 'Menunggu' },
+          { value: 'disetujui', label: 'Disetujui' },
+          { value: 'revisi', label: 'Revisi' }
+        ] }
+      ];
+      if (this.isAdmin) defs.splice(2, 0, this.defPegawaiFilter_());
+      return defs;
+    },
+
+    // ---- Data chart Dashboard (dimakan <app-chart-* bare>) ----
+    kdTrenLabels() {
+      return ((this.kdData && this.kdData.tren_30_hari) || []).map(t => String(t.tanggal).slice(5));
+    },
+    kdTrenDatasets() {
+      return [{ label: 'Realisasi', data: ((this.kdData && this.kdData.tren_30_hari) || []).map(t => t.jumlah) }];
+    },
+    kdRhkLabels() {
+      const dist = (this.kdData && this.kdData.distribusi_rhk) || {};
+      const labels = Object.keys(dist).map(k => k === '(pra-RHK)' ? 'Pra-RHK (legacy)' : this.namaRhk_(k));
+      return labels.length ? labels : ['Belum ada'];
+    },
+    kdRhkDatasets() {
+      const dist = (this.kdData && this.kdData.distribusi_rhk) || {};
+      const data = Object.values(dist);
+      return [{ data: data.length ? data : [1] }];
+    },
+    kdRhkColors() {
+      return ['#10b981', '#3b82f6', '#f59e0b', '#a855f7', '#14b8a6', '#f97316', '#64748b'];
+    },
+
+    // Kanban: kelompok per status (kolom). Batal dipisah (kolom redup).
+    kanbanKolom() {
+      const kolom = { direncanakan: [], dikerjakan: [], selesai: [], diverifikasi: [], batal: [] };
+      (this.rencanaList || []).forEach(r => {
+        const s = String(r.status || 'direncanakan').toLowerCase();
+        (kolom[s] || kolom.direncanakan).push(r);
+      });
+      return kolom;
+    },
+    // Kalender: matriks 6x7 sel {key, tanggal, chips, kosong, bulanLain}
+    calCells() {
+      const per = this.calMonth || new Date().toISOString().slice(0, 7);
+      const [y, m] = per.split('-').map(Number);
+      const first = new Date(y, m - 1, 1);
+      const startIdx = (first.getDay() + 6) % 7; // Senin = 0
+      const cells = [];
+      const base = new Date(y, m - 1, 1 - startIdx);
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        cells.push({
+          key,
+          angka: d.getDate(),
+          bulanLain: d.getMonth() !== m - 1,
+          hariIni: key === (this.todayIso_ ? this.todayIso_() : ''),
+          chips: (this.calList || []).filter(r => String(r.tanggal_rencana || '').slice(0, 10) === key)
+        });
+      }
+      return cells;
+    },
+    calLabel() {
+      const per = this.calMonth || '';
+      if (!/^\d{4}-\d{2}$/.test(per)) return '';
+      const nama = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      return nama[Number(per.slice(5, 7)) - 1] + ' ' + per.slice(0, 4);
+    },
+
+    // ---- Master Kinerja: opsi + list terfilter (review G18c-2, adopsi
+    //      tata letak Master si-kompetensi: baris filter custom di view) ----
+    tahunRhkOptions() {
+      return Array.from(new Set((this.rhkList || []).map(r => Number(r.periode_tahun)).filter(y => y > 0))).sort((a, b) => b - a);
+    },
+    labelTambahPerTab() {
+      return this.activeMasterKinerjaTab === 'rhk' ? 'RHK Baru'
+        : (this.activeMasterKinerjaTab === 'jenis' ? 'Jenis Baru' : 'Satuan Baru');
+    },
+    rhkFiltered() {
+      const f = this.masterFilters || {};
+      return (this.rhkList || []).filter(r => {
+        if (f.tahun && String(r.periode_tahun) !== String(f.tahun)) return false;
+        if (f.status && String(r.status || 'aktif') !== String(f.status)) return false;
+        return this._masterMatchVals_([r.nama_rhk, r.indikator, this.namaPegawai(r.pegawai_id)]);
+      });
+    },
+    jenisFiltered() {
+      const f = this.masterFilters || {};
+      return (this.jenisTugasList || []).filter(r => {
+        if (f.status && String(r.status || 'aktif') !== String(f.status)) return false;
+        return this._masterMatchVals_([r.kode, r.nama, r.keterangan]);
+      });
+    },
+    satuanFiltered() {
+      const f = this.masterFilters || {};
+      return (this.satuanList || []).filter(r => {
+        if (f.status && String(r.status || 'aktif') !== String(f.status)) return false;
+        return this._masterMatchVals_([r.kode, r.nama, r.keterangan]);
+      });
+    },
+  },
+
+  methods: {
+    // ============ PASPOR KINERJA (G19b, docs/09) ============
+    // v1 NOL backend baru: dashboard_kinerja + 3 list API yang sudah hidup.
+    // Admin: list API mengembalikan semua baris → dipersempit ke diri sendiri
+    // di klien (dashboard_kinerja memang selalu self-scoped di server).
+    async loadPaspor() {
+      this.pasporLoading = true;
+      try {
+        if (!this.profilPeriode) this.profilPeriode = this.profilPeriodeOptions[0].value;
+        await this.ensureMasters_();
+        const [, dash, real, rekap, rhk] = await Promise.all([
+          this.loadProfil(),   // identitas (J_Api lama) → myProfile (slot 0, hasil diabaikan)
+          this.callServer('dashboard_kinerja', { periode: this.profilPeriode }),
+          this.callServer('get_realisasi_list', { page: 1, limit: 50 }),
+          this.callServer('get_rekap_list', { page: 1, limit: 24 }),
+          this.callServer('get_rhk_list', { page: 1, limit: 200 })
+        ]);
+        if (dash && dash.success) this.pasporDashboard = dash.data || null;
+        const myPeg = this.pasporPegawaiId;   // v1.1: fallback email→SIMPEG
+        // v1.1b (review owner: 'itu karena saya login akun admin'): admin yang
+        // TIDAK tertaut pegawai mana pun jangan diperlihatkan data seluruh
+        // pegawai seolah miliknya — kosongkan + jelaskan (jujur & aman).
+        this.pasporTanpaTautan = this.isAdmin && !myPeg;
+        const scopeMe = (rows) => (this.isAdmin && myPeg)
+          ? (rows || []).filter(r => String(r.pegawai_id || '').trim() === myPeg)
+          : (rows || []);
+        if (this.pasporTanpaTautan) {
+          this.pasporRealisasi = []; this.pasporRekap = []; this.pasporRhk = [];
+        } else {
+          if (real && real.success) this.pasporRealisasi = scopeMe(real.data);
+          if (rekap && rekap.success) this.pasporRekap = scopeMe(rekap.data);
+          if (rhk && rhk.success) this.pasporRhk = scopeMe(rhk.data);
+        }
+      } catch (e) { this.showToast(e.message || 'Gagal memuat paspor kinerja', 'error'); }
+      finally { this.pasporLoading = false; }
+    },
+    // Ganti bulan → cukup segarkan speedometer (dashboard_kinerja); transkrip lintas periode.
+    async setProfilPeriode(p) {
+      this.profilPeriode = p;
+      try {
+        const res = await this.callServer('dashboard_kinerja', { periode: p });
+        if (res.success) this.pasporDashboard = res.data || null;
+      } catch (e) { console.error(e); }
+    },
+    // ============ MASTER PICKER (dipakai banyak halaman) ============
+    async ensureMasters_(force = false) {
+      if (!force && this.rhkList.length && this.jenisTugasList.length && this.satuanList.length) return;
+      this.mastersLoading = true;
+      try {
+        const [rhk, jt, sat] = await Promise.all([
+          this.callServer('get_rhk_list', { page: 1, limit: 500 }),
+          this.callServer('get_jenis_tugas_list'),
+          this.callServer('get_satuan_list')
+        ]);
+        if (rhk.success) this.rhkList = rhk.data || [];
+        if (jt.success) this.jenisTugasList = jt.data || [];
+        if (sat.success) this.satuanList = sat.data || [];
+      } catch (e) { console.error(e); }
+      finally { this.mastersLoading = false; }
+    },
+
+    // ============ DASHBOARD KINERJA (FR-19/20) ============
+    // Chart digambar <app-chart-bar bare>/<app-chart-doughnut bare> dari
+    // computed kdTren*/kdRhk* — tidak ada Chart.js manual lagi (G18c-2).
+    async loadDashboardKinerja() {
+      this.kdLoading = true;
+      try {
+        await this.ensureMasters_();
+        const res = await this.callServer('dashboard_kinerja');
+        if (res.success) this.kdData = res.data || null;
+        else this.showToast(res.error || 'Gagal memuat dashboard kinerja', 'error');
+        if (this.isAdmin) {
+          const an = await this.callServer('analisa_kinerja');
+          this.kdAnalisa = an.success ? (an.data || null) : null;
+        }
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.kdLoading = false; }
+    },
+
+    // ============ RENCANA KANBAN (FR-05..FR-07, FR-09) ============
+    async loadRencana() {
+      this.rencanaLoading = true;
+      try {
+        await this.ensureMasters_();
+        const f = this.rencanaFilters || {};
+        const res = await this.callServer('get_rencana_list', {
+          filters: { tanggal: f.tanggal || '', pegawai_id: f.pegawai_id || '', status: f.status || '' },
+          page: 1, limit: 200
+        });
+        if (res.success) this.rencanaList = res.data || [];
+        else this.showToast(res.error || 'Gagal memuat rencana', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.rencanaLoading = false; }
+    },
+    // <app-filter-bar> @change/@reset → muat ulang langsung
+    onRencanaFilterChange() { this.loadRencana(); },
+    openRencanaForm(item = null, tanggal = '') {
+      if (item) {
+        this.rencanaForm = {
+          id: item.id, tanggal_rencana: String(item.tanggal_rencana || '').slice(0, 10),
+          rhk_id: item.rhk_id || '', jenis_tugas_id: item.jenis_tugas_id || '',
+          rencana_hasil: item.rencana_hasil || '', prioritas: item.prioritas || 'biasa'
+        };
+      } else {
+        this.rencanaForm = {
+          id: '', tanggal_rencana: tanggal || (this.rencanaFilters && this.rencanaFilters.tanggal) || (this.todayIso_ ? this.todayIso_() : ''),
+          rhk_id: '', jenis_tugas_id: '', rencana_hasil: '', prioritas: 'biasa'
+        };
+      }
+      // Modal host: kanban pakai showRencanaForm; kalender pakai showRencanaFormKal
+      if (this.currentPage === 'rencana_kalender') this.showRencanaFormKal = true;
+      else this.showRencanaForm = true;
+    },
+    async saveRencana() {
+      this.rencanaSaving = true;
+      try {
+        const res = await this.callServer('save_rencana', { record: this.rencanaForm });
+        if (res.success) {
+          this.showRencanaForm = false;
+          this.showRencanaFormKal = false;
+          if (this.currentPage === 'rencana_kalender') await this.loadRencanaKalender();
+          else await this.loadRencana();
+          this.showToast('Rencana berhasil disimpan');
+        } else this.showToast(res.error || 'Gagal menyimpan rencana', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.rencanaSaving = false; }
+    },
+    async moveStatusRencana(item, statusBaru) {
+      try {
+        const res = await this.callServer('move_status_rencana', { id: item.id, status_baru: statusBaru });
+        if (res.success) {
+          await this.loadRencana();
+          this.showToast('Status → ' + statusBaru);
+        } else this.showToast(res.error || 'Gagal pindah status', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+    },
+    async deleteRencana(item) {
+      if (!confirm('Hapus rencana "' + (item.rencana_hasil || item.id) + '"?')) return;
+      try {
+        const res = await this.callServer('delete_rencana', { id: item.id });
+        if (res.success) { await this.loadRencana(); this.showToast('Rencana dihapus'); }
+        else this.showToast(res.error || 'Gagal menghapus rencana', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+    },
+    // Dari kartu rencana (status dikerjakan/selesai) → form realisasi tertaut (FR-14)
+    buatRealisasiDariRencana(item) {
+      this.openRealisasiForm(null);
+      this.realisasiForm.rencana_id = item.id;
+      this.realisasiForm.rhk_id = item.rhk_id || '';
+      this.realisasiForm.jenis_tugas_id = item.jenis_tugas_id || '';
+      this.realisasiForm.tanggal = String(item.tanggal_rencana || '').slice(0, 10) || this.realisasiForm.tanggal;
+      this.realisasiForm.uraian_hasil = item.rencana_hasil || '';
+      this.navigateTo('realisasi');
+    },
+
+    // ============ RENCANA KALENDER (FR-08) ============
+    async loadRencanaKalender() {
+      if (!this.calMonth) this.calMonth = (this.todayIso_ ? this.todayIso_() : new Date().toISOString()).slice(0, 7);
+      this.calLoading = true;
+      try {
+        const [y, m] = this.calMonth.split('-').map(Number);
+        const akhir = new Date(y, m, 0).getDate();
+        const filters = { dari: this.calMonth + '-01', sampai: this.calMonth + '-' + String(akhir).padStart(2, '0') };
+        if (this.isAdmin && this.rencanaFilters.pegawai_id) filters.pegawai_id = this.rencanaFilters.pegawai_id;
+        const res = await this.callServer('get_rencana_list', { filters, page: 1, limit: 500 });
+        if (res.success) this.calList = (res.data || []).filter(r => String(r.status || '').toLowerCase() !== 'batal');
+        else this.showToast(res.error || 'Gagal memuat kalender', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.calLoading = false; }
+    },
+    calGeser(delta) {
+      const [y, m] = (this.calMonth || new Date().toISOString().slice(0, 7)).split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      this.calMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      this.loadRencanaKalender();
+    },
+    // Klik sel → buka Kanban terfilter tanggal sel (FR-08)
+    bukaKanbanTanggal(key) {
+      this.rencanaFilters.tanggal = key;
+      this.navigateTo('rencana_kanban');
+      this.loadRencana();
+    },
+
+    // ============ REALISASI HARIAN (FR-10..FR-13) ============
+    async loadRealisasi(page = 1) {
+      this.realisasiPage = page;
+      this.realisasiLoading = true;
+      try {
+        await this.ensureMasters_();
+        const f = this.realisasiFilters || {};
+        const res = await this.callServer('get_realisasi_list', {
+          filters: {
+            tanggal: f.tanggal || '', pegawai_id: f.pegawai_id || '',
+            rhk_id: f.rhk_id || '', status_verifikasi: f.status_verifikasi || ''
+          },
+          page, limit: this.pageSize, search: f.search || ''
+        });
+        if (res.success) {
+          this.realisasiList = res.data || [];
+          this.realisasiTotalPages = res.meta?.total_pages || 1;
+          this.realisasiTotalData = res.meta?.total || 0;
+        } else this.showToast(res.error || 'Gagal memuat realisasi', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.realisasiLoading = false; }
+    },
+    // @change <app-filter-bar> → debounce 400ms (aman utk ketikan search)
+    onRealisasiFilterChange() {
+      clearTimeout(this._searchTimerRealisasi);
+      this._searchTimerRealisasi = setTimeout(() => this.loadRealisasi(1), 400);
+    },
+    openRealisasiForm(item = null) {
+      if (item) {
+        this.realisasiForm = {
+          id: item.id, tanggal: String(item.tanggal || '').slice(0, 10),
+          rhk_id: item.rhk_id || '', rencana_id: item.rencana_id || '',
+          jenis_tugas_id: item.jenis_tugas_id || '',
+          uraian_hasil: item.deskripsi || item.uraian_hasil || '',
+          volume: item.volume === '' || item.volume == null ? '' : Number(item.volume),
+          satuan_id: item.satuan_id || '',
+          waktu_mulai: item.waktu_mulai || '', waktu_selesai: item.waktu_selesai || '',
+          lampiran: (item.lampiran || []).map(l => ({ id: l.id, jenis_bukti: l.jenis_bukti, url: l.url || '', nama_bukti: l.nama_bukti || '', keterangan: l.keterangan || '' }))
+        };
+      } else {
+        this.realisasiForm = {
+          id: '', tanggal: (this.todayIso_ ? this.todayIso_() : ''), rhk_id: '', rencana_id: '',
+          jenis_tugas_id: '', uraian_hasil: '', volume: '', satuan_id: '',
+          waktu_mulai: '', waktu_selesai: '', lampiran: []
+        };
+      }
+      this.showRealisasiForm = true;
+    },
+    addLampiranRow() {
+      this.realisasiForm.lampiran.push({ id: '', jenis_bukti: 'link', url: '', nama_bukti: '', keterangan: '' });
+    },
+    removeLampiranRow(i) { this.realisasiForm.lampiran.splice(i, 1); },
+    async saveRealisasi() {
+      this.realisasiSaving = true;
+      try {
+        const rec = Object.assign({}, this.realisasiForm);
+        const lampiran = rec.lampiran; delete rec.lampiran;
+        const res = await this.callServer('save_realisasi', { record: rec, lampiran });
+        if (res.success) {
+          this.showRealisasiForm = false;
+          await this.loadRealisasi(this.realisasiPage);
+          this.showToast('Realisasi berhasil disimpan');
+        } else this.showToast(res.error || 'Gagal menyimpan realisasi', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.realisasiSaving = false; }
+    },
+    async deleteRealisasi(item) {
+      if (!confirm('Hapus realisasi "' + (item.deskripsi || item.id) + '" beserta bukti lampirannya?')) return;
+      try {
+        const res = await this.callServer('delete_realisasi', { id: item.id });
+        if (res.success) { await this.loadRealisasi(this.realisasiPage); this.showToast('Realisasi dihapus'); }
+        else this.showToast(res.error || 'Gagal menghapus realisasi', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+    },
+
+    // ============ VERIFIKASI (FR-15/16) ============
+    async loadAntrian() {
+      this.antrianLoading = true;
+      try {
+        const res = await this.callServer('get_antrian_verifikasi', { page: 1, limit: 50 });
+        if (res.success) {
+          this.antrianList = res.data || [];
+          this.antrianTotal = res.meta?.menunggu_total || (res.meta?.total || 0);
+        } else this.showToast(res.error || 'Gagal memuat antrian', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.antrianLoading = false; }
+    },
+    async verifikasiRealisasi(item, keputusan) {
+      const catatan = prompt(keputusan === 'setujui' ? 'Catatan persetujuan (opsional):' : 'Catatan revisi (WAJIB diisi):', '');
+      if (catatan === null) return;
+      if (keputusan === 'revisi' && !String(catatan).trim()) { this.showToast('Catatan revisi wajib diisi', 'error'); return; }
+      try {
+        const res = await this.callServer('verifikasi_realisasi', { id: item.id, keputusan, catatan_atasan: catatan || '' });
+        if (res.success) {
+          await this.loadAntrian();
+          this.showToast('Realisasi ' + (keputusan === 'setujui' ? 'disetujui' : 'dikembalikan untuk revisi'));
+        } else this.showToast(res.error || 'Gagal verifikasi', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+    },
+
+    // ============ SKP BULANAN (FR-17/18) ============
+    async loadRekap() {
+      if (!this.rekapPeriode) this.rekapPeriode = (this.todayIso_ ? this.todayIso_() : new Date().toISOString()).slice(0, 7);
+      this.rekapLoading = true;
+      try {
+        const res = await this.callServer('get_rekap_list', { filters: { periode: this.rekapPeriode }, page: 1, limit: 100 });
+        if (res.success) this.rekapList = res.data || [];
+        else this.showToast(res.error || 'Gagal memuat rekap', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.rekapLoading = false; }
+    },
+    async generateRekap() {
+      if (!confirm('Generate/refresh Laporan SKP Bulanan periode ' + this.rekapPeriode + '?')) return;
+      this.rekapGenerating = true;
+      try {
+        const res = await this.callServer('generate_rekap_bulanan', { periode: this.rekapPeriode });
+        if (res.success) {
+          this.showToast('Rekap dibuat: ' + res.data.dibuat + ' baru, ' + res.data.diperbarui + ' diperbarui');
+          await this.loadRekap();
+        } else this.showToast(res.error || 'Gagal generate rekap', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.rekapGenerating = false; }
+    },
+    openRekapDetail(row) {
+      let rhk = [];
+      try { rhk = JSON.parse(row.capaian_rhk_json || '[]'); } catch (e) { rhk = []; }
+      this.rekapDetail = Object.assign({}, row, { capaian_rhk: rhk });
+      this.showRekapDetail = true;
+    },
+
+    // ============ MASTER KINERJA (FR-01..FR-03) ============
+    async loadMasterKinerja() { await this.ensureMasters_(true); },
+    // Tombol refresh (adopsi praktik baik Master si-kompetensi)
+    async refreshMasters() {
+      await this.ensureMasters_(true);
+      this.showToast('Master dimuat ulang');
+    },
+    // CTA baris filter master: buka form sesuai tab aktif
+    openFormPerTab() {
+      if (this.activeMasterKinerjaTab === 'rhk') this.openRhkForm();
+      else if (this.activeMasterKinerjaTab === 'jenis') this.openJenisForm();
+      else this.openSatuanForm();
+    },
+
+    // ---- RHK ----
+    openRhkForm(item = null) {
+      if (item) {
+        this.rhkForm = {
+          id: item.id, pegawai_id: item.pegawai_id || '', periode_tahun: item.periode_tahun || new Date().getFullYear(),
+          jenis_rhk: item.jenis_rhk || 'utama', klasifikasi: item.klasifikasi || 'individu',
+          nama_rhk: item.nama_rhk || '', indikator: item.indikator || '',
+          satuan_id: item.satuan_id || '', target_tahunan: item.target_tahunan || '',
+          rhk_atasan_id: item.rhk_atasan_id || '', status: item.status || 'aktif'
+        };
+      } else {
+        this.rhkForm = {
+          id: '', pegawai_id: '', periode_tahun: new Date().getFullYear(), jenis_rhk: 'utama',
+          klasifikasi: 'individu', nama_rhk: '', indikator: '', satuan_id: '',
+          target_tahunan: '', rhk_atasan_id: '', status: 'aktif'
+        };
+      }
+      this.showRhkForm = true;
+    },
+    async saveRhk() {
+      this.masterSaving = true;
+      try {
+        const res = await this.callServer('save_rhk', { record: this.rhkForm });
+        if (res.success) { this.showRhkForm = false; await this.ensureMasters_(true); this.showToast('RHK disimpan'); }
+        else this.showToast(res.error || 'Gagal menyimpan RHK', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.masterSaving = false; }
+    },
+    async deleteRhk(item) {
+      if (!confirm('Hapus RHK "' + (item.nama_rhk || item.id) + '"?')) return;
+      try {
+        const res = await this.callServer('delete_rhk', { id: item.id });
+        if (res.success) { await this.ensureMasters_(true); this.showToast('RHK dihapus'); }
+        else this.showToast(res.error || 'Gagal menghapus RHK', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+    },
+
+    // ---- JENIS_TUGAS / SATUAN ----
+    openJenisForm(item = null) {
+      this.jenisForm = item
+        ? { id: item.id, kode: item.kode || '', nama: item.nama || '', keterangan: item.keterangan || '', status: item.status || 'aktif' }
+        : { id: '', kode: '', nama: '', keterangan: '', status: 'aktif' };
+      this.showJenisForm = true;
+    },
+    async saveJenis() {
+      this.masterSaving = true;
+      try {
+        const res = await this.callServer('save_jenis_tugas', { record: this.jenisForm });
+        if (res.success) { this.showJenisForm = false; await this.ensureMasters_(true); this.showToast('Jenis tugas disimpan'); }
+        else this.showToast(res.error || 'Gagal menyimpan jenis tugas', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.masterSaving = false; }
+    },
+    openSatuanForm(item = null) {
+      this.satuanForm = item
+        ? { id: item.id, kode: item.kode || '', nama: item.nama || '', keterangan: item.keterangan || '', status: item.status || 'aktif' }
+        : { id: '', kode: '', nama: '', keterangan: '', status: 'aktif' };
+      this.showSatuanForm = true;
+    },
+    async saveSatuan() {
+      this.masterSaving = true;
+      try {
+        const res = await this.callServer('save_satuan', { record: this.satuanForm });
+        if (res.success) { this.showSatuanForm = false; await this.ensureMasters_(true); this.showToast('Satuan disimpan'); }
+        else this.showToast(res.error || 'Gagal menyimpan satuan', 'error');
+      } catch (e) { this.showToast(e.message, 'error'); }
+      finally { this.masterSaving = false; }
+    }
+  }
+};
+</script>
