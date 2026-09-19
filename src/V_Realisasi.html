@@ -39,14 +39,14 @@
                   :total-data="realisasiTotalData"
                   empty-text="Belum ada realisasi pada filter ini. Klik &quot;Realisasi Baru&quot;."
                   :columns="[
-                    { label: 'Tanggal', thClass: 'min-w-[110px]' },
-                    { label: 'Pegawai', thClass: isAdmin ? 'min-w-[180px]' : 'hidden' },
-                    { label: 'Uraian Hasil', thClass: 'min-w-[240px]' },
-                    { label: 'RHK', thClass: 'min-w-[200px]' },
-                    { label: 'Jenis', thClass: 'min-w-[130px]' },
-                    { label: 'Volume', thClass: 'min-w-[90px]' },
-                    { label: 'Bukti', thClass: 'min-w-[80px]' },
-                    { label: 'Verifikasi', thClass: 'min-w-[120px]' },
+                    { label: 'Tanggal' },
+                    { label: 'Pegawai', thClass: isAdmin ? '' : 'hidden' },
+                    { label: 'Uraian Hasil' },
+                    { label: 'RHK' },
+                    { label: 'Jenis' },
+                    { label: 'Volume' },
+                    { label: 'Bukti' },
+                    { label: 'Verifikasi' },
                     { label: 'Aksi', thClass: 'text-right pr-6' }
                   ]"
                   @change-page="loadRealisasi($event)">
