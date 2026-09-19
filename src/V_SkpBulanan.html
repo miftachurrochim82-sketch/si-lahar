@@ -43,15 +43,15 @@
                   empty-icon="fa-regular fa-file-lines"
                   :empty-text="isAdmin ? 'Belum ada rekap periode ini. Klik Generate / Refresh.' : 'Belum ada rekap periode ini. Minta admin men-generate laporan.'"
                   :columns="[
-                    { label: 'Periode', thClass: 'min-w-[100px]' },
-                    { label: 'Pegawai', thClass: isAdmin ? 'min-w-[180px]' : 'hidden' },
-                    { label: 'Rencana', thClass: 'text-center min-w-[80px]' },
-                    { label: 'Realisasi', thClass: 'text-center min-w-[80px]' },
-                    { label: 'Diverifikasi', thClass: 'text-center min-w-[90px]' },
-                    { label: 'Revisi', thClass: 'text-center min-w-[80px]' },
-                    { label: 'Capaian', thClass: 'min-w-[150px]' },
-                    { label: 'Predikat', thClass: 'min-w-[110px]' },
-                    { label: 'Status', thClass: 'min-w-[110px]' },
+                    { label: 'Periode' },
+                    { label: 'Pegawai', thClass: isAdmin ? '' : 'hidden' },
+                    { label: 'Rencana', thClass: 'text-center' },
+                    { label: 'Realisasi', thClass: 'text-center' },
+                    { label: 'Diverifikasi', thClass: 'text-center' },
+                    { label: 'Revisi', thClass: 'text-center' },
+                    { label: 'Capaian' },
+                    { label: 'Predikat' },
+                    { label: 'Status' },
                     { label: 'Detail', thClass: 'text-right pr-6' }
                   ]">
     <template #row="{ row }">
