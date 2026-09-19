@@ -4,7 +4,22 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SILAHAR - Satpol PP & Damkar Kab. Trenggalek</title>
+  <title>SILAHAR - e-Kinerja Harian</title>
+
+  <meta name="theme-color" content="#059669">
+
+  <!-- Identitas tema SILAHAR (variabel --primary-* dibaca app-common.css/kit) -->
+  <style>
+    :root {
+      --primary:         #059669;
+      --primary-dark:    #047857;
+      --primary-light:   #ecfdf5;
+      --primary-lighter: #d1fae5;
+      --primary-text:    #064e3b;
+      --primary-accent:  #34d399;
+      --primary-rgb:     5, 150, 105;
+    }
+  </style>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,13 +30,8 @@
         extend: {
           colors: {
             brand: {
-              50: '#f0fdf4',
-              100: '#dcfce7',
-              500: '#22c55e',
-              600: '#16a34a',
-              700: '#15803d',
-              800: '#166534',
-              900: '#14532d',
+              50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e',
+              600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d'
             }
           }
         }
@@ -29,75 +39,36 @@
     }
   </script>
 
-  <!-- Font Awesome 6 Pro / Free -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Font Awesome (sumber disamakan dgn si-kompetensi: jsDelivr npm) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Kit ekosistem frontend-cdn v2.8.0.
+       G18c-2 (KIT ALIGNMENT): Chart.js/SheetJS/jsPDF TIDAK lagi dimuat statis —
+       AppCore.loadLib() memuat on-demand (chart utk <app-chart-*>, xlsx/pdf utk
+       exportExcel/exportPDF). app-modules.min.js DITAMBAHKAN (<app-profile>,
+       <app-settings>). -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-common.min.css">
 
-  <!-- SheetJS (Excel Export) -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <!-- Boot dark-mode sebelum render: kunci silahar_dark -->
+  <script>
+    try {
+      if (localStorage.getItem('silahar_dark') === 'true') document.documentElement.classList.add('dark');
+    } catch (e) { /* diabaikan sengaja */ }
+  </script>
 
-  <!-- jsPDF + Autotable (PDF Export) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- Google Style Include -->
+  <!-- Gaya kustom SILAHAR (G18c-2: dipangkas — hanya identitas + kanban/kalender) -->
   <?!= include('A0_Style'); ?>
 
-  <!-- Inline CSS Fallback & Animations -->
+  <!-- G18c-2: toast & animasi DISEDIAKAN app-common.css (kit) — style inline
+       lama dihapus. Sisa hanya v-cloak (sebelum CSS kit termuat). -->
   <style>
     [v-cloak] { display: none !important; }
-
-    /* Custom Scrollbar */
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-    /* Toast Notification System */
-    .toast-container {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      max-width: 24rem;
-      width: calc(100% - 3rem);
-      pointer-events: none;
-    }
-    .toast-item {
-      pointer-events: auto;
-      padding: 0.875rem 1.25rem;
-      border-radius: 1rem;
-      font-size: 0.8125rem;
-      font-weight: 700;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
-      backdrop-filter: blur(8px);
-      animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .toast-success { background-color: rgba(6, 78, 59, 0.95); color: #ecfdf5; border: 1px solid #10b981; }
-    .toast-error { background-color: rgba(136, 19, 55, 0.95); color: #fff1f2; border: 1px solid #f43f5e; }
-    .toast-info { background-color: rgba(30, 58, 138, 0.95); color: #eff6ff; border: 1px solid #3b82f6; }
-
-    @keyframes toastIn {
-      from { transform: translateY(100%) scale(0.9); opacity: 0; }
-      to { transform: translateY(0) scale(1); opacity: 1; }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
   </style>
 </head>
 
 <body class="h-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white">
-  
-  <div id="app" v-cloak class="min-h-screen flex flex-col">
+
+  <div id="app" v-cloak>
 
     <!-- Toast Notification Container -->
     <div class="toast-container" aria-live="polite">
@@ -111,960 +82,81 @@
       </div>
     </div>
 
-    <!-- Halaman Login SSO Gateway -->
-    <?!= include('A1_Login'); ?>
+    <!-- Login SSO Gateway (komponen kit <app-login>) -->
+    <app-login v-if="!token"
+               :is-processing="isProcessing"
+               :error-message="errorMessage"
+               :app-title="appTitle"
+               app-subtitle="e-Kinerja Harian ASN"
+               instansi="Satpol PP & Damkar Kab. Trenggalek"
+               @login="goToPlatform">
+    </app-login>
 
-    <!-- Main Application Layout -->
-    <div v-else class="flex min-h-screen relative overflow-x-hidden">
+    <!-- Shell Utama (komponen kit <app-sidebar> + <app-header>) -->
+    <div v-else class="flex h-screen overflow-hidden bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans">
 
-      <!-- Sidebar Navigation -->
-      <?!= include('A2_Sidebar'); ?>
+      <app-sidebar :collapsed="sidebarCollapsed"
+                   :mobile-open="sidebarMobileOpen"
+                   :dark="isDarkMode"
+                   :current-page="currentPage"
+                   :is-admin="isAdmin"
+                   :user="currentUser"
+                   :brand="brand"
+                   :menu="menu"
+                   @navigate="navigateTo"
+                   @toggle="toggleSidebar"
+                   @close="sidebarMobileOpen = false"
+                   @logout="logout">
+      </app-sidebar>
 
-      <!-- Main Content Viewport Area -->
-      <div class="flex-1 flex flex-col min-w-0 bg-slate-100 dark:bg-slate-950 transition-colors duration-300">
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div class="px-4 sm:px-6 pt-4 shrink-0">
+          <app-header :dark="isDarkMode"
+                      :app-title="appTitle"
+                      :current-page="currentPage"
+                      :page-icons="pageIcons"
+                      :user="currentUser"
+                      @toggle-dark="toggleDarkMode"
+                      @toggle-mobile="sidebarMobileOpen = !sidebarMobileOpen"
+                      @navigate="navigateTo">
+          </app-header>
+        </div>
 
-        <!-- Universal Header -->
-        <?!= include('A3_Header'); ?>
-
-        <!-- Dynamic Main Content Section -->
-        <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-
-          <!-- Page 1: Dashboard -->
-          <?!= include('A4_Dashboard'); ?>
-
-          <!-- Page 2: Master Data -->
-          <?!= include('A8_MasterData'); ?>
-
-          <!-- Page 3: Riwayat Laporan -->
-          <?!= include('A5_RiwayatLaporan'); ?>
-
-          <!-- Page 4: Analisa & Rekomendasi -->
-          <?!= include('A6_Analisa'); ?>
-
-          <!-- Page 5: Profil Saya -->
-          <?!= include('A7_Profil'); ?>
-
-          <!-- Page 6: Pengaturan Aplikasi -->
-          <?!= include('A9_Pengaturan'); ?>
-
-          <!-- Page 7: Tentang Aplikasi -->
-          <?!= include('A10_Tentang'); ?>
-
+        <!-- Konten halaman dinamis (G18c-2: Tentang dihapus — tidak ada di
+             si-kompetensi; info aplikasi dilebur ke footer Dashboard) -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <?!= include('V_Modals'); ?>
+          <?!= include('V_Dashboard'); ?>
+          <?!= include('V_RencanaKanban'); ?>
+          <?!= include('V_RencanaKalender'); ?>
+          <?!= include('V_Realisasi'); ?>
+          <?!= include('V_SkpBulanan'); ?>
+          <?!= include('V_Verifikasi'); ?>
+          <?!= include('V_MasterKinerja'); ?>
+          <?!= include('V_Profil'); ?>
+          <?!= include('V_Pengaturan'); ?>
         </main>
       </div>
     </div>
 
   </div>
 
-  <!-- Vue 3 Production Build -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-
-  <!-- Application Main Logic Script -->
-  <script>
-    const { createApp } = Vue;
-
-// ============================================================
-// SILAHAR - FILE VUE UTAMA LENGKAP (v2-ready + patch F1-F6, F9)
-// Cara pakai: ganti SELURUH isi blok JavaScript createApp yang lama
-// dengan isi file ini (di lokasi/file yang sama seperti sebelumnya).
-// Patch yang sudah diterapkan:
-// - F1: callServer tangani UNAUTHORIZED terpusat + handleSessionExpired
-// - F2: processInitialAuth verifikasi token sebelum initApp
-// - F3: computed isAdmin + method canEditLaporan
-// - F4: aksi baru save_laporan / delete_laporan / get_riwayat_list / get_my_profile
-// - F5: verifikasiLaporan + debounce search + toast gagal loadReferensi + field waktu
-// - F6: data appTitle (ganti {{ APP_TITLE }} di A2 & A10)
-// - F9: navigateTo cegah non-admin buka pengaturan
-// ============================================================
-const app = createApp({
-  data() {
-    return {
-      // Identitas aplikasi (ganti APP_TITLE tak-terdefinisi)
-      appTitle: 'SILAHAR',
-
-      // Token & User Auth
-      token: sessionStorage.getItem('silahar_token') || '',
-      currentUser: (() => {
-        try {
-          const raw = sessionStorage.getItem('silahar_user');
-          const parsed = raw ? JSON.parse(raw) : {};
-          return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch (e) {
-          return {};
-        }
-      })(),
-
-      // UI Navigation States
-      currentPage: 'dashboard',
-      sidebarCollapsed: window.innerWidth < 1024,
-      sidebarMobileOpen: false,
-      isDarkMode: localStorage.getItem('silahar_dark') === 'true',
-      toasts: [],
-      loading: false,
-      errorMessage: '',
-      isProcessing: false,
-      dataLoaded: false,
-      loadedPages: {},
-
-      // Dashboard Metric
-      dashboardData: {},
-
-      // Referensi SIMPEG
-      pegawaiList: [],
-      unitList: [],
-      jabatanList: [],
-
-      // Chart Instances
-      _chartJenisKegiatan: null,
-      _chartLaporanTanggal: null,
-
-      // Timer debounce pencarian
-      _searchTimerLaporan: null,
-      _searchTimerRiwayat: null,
-
-      // Master Data Laporan Harian (Full CRUD)
-      laporanList: [],
-      laporanPage: 1,
-      laporanTotalPages: 1,
-      laporanTotalData: 0,
-      laporanSearch: '',
-      laporanLoading: false,
-      laporanSaving: false,
-      showLaporanForm: false,
-      laporanForm: {
-        id: '',
-        pegawai_id: '',
-        tanggal: '',
-        waktu_mulai: '',
-        waktu_selesai: '',
-        jenis_kegiatan: '',
-        deskripsi: '',
-        hasil: '',
-        kendala: '',
-        tindak_lanjut: '',
-        file_url: ''
-      },
-
-      // Riwayat Laporan State
-      riwayatList: [],
-      riwayatPage: 1,
-      riwayatTotalPages: 1,
-      riwayatTotalData: 0,
-      riwayatSearch: '',
-      riwayatFilterTanggal: '',
-      riwayatFilterPegawai: '',
-      riwayatFilterJenis: '',
-      riwayatLoading: false,
-
-      // Analisa State
-      analisaData: null,
-      analisaLoading: false,
-
-      // Profil State
-      myProfile: null,
-      profilLoading: false,
-      isEditingProfil: false,
-      editProfilForm: { alamat: '', no_hp: '', email: '' },
-      profilSaving: false,
-
-      // Master Data Referensi Tab State
-      activeMasterTab: 'laporan',
-      pegawaiSearch: '',
-      unitSearch: '',
-      jabatanSearch: '',
-      pegawaiRefPage: 1,
-      unitRefPage: 1,
-      jabatanRefPage: 1,
-
-      // Pengaturan State
-      configList: [],
-      configLoading: false,
-      showEditConfig: false,
-      selectedConfig: null,
-      editConfigKey: '',
-      editConfigValue: '',
-      editConfigKeterangan: '',
-      configSaving: false,
-
-      // General Configuration
-      pageSize: 10
-    };
-  },
-
-  computed: {
-    // F3: true bila role session admin/super
-    isAdmin() {
-      const r = String((this.currentUser && this.currentUser.role) || '').toLowerCase();
-      return r === 'admin' || r === 'super';
-    },
-
-    // Filtered Referensi SIMPEG
-    filteredPegawaiReferensi() {
-      const q = String(this.pegawaiSearch || '').toLowerCase().trim();
-      if (!q) return this.pegawaiList || [];
-      return (this.pegawaiList || []).filter(p =>
-        String(p.nip || '').toLowerCase().includes(q) ||
-        String(p.nama || '').toLowerCase().includes(q) ||
-        String(p.email || '').toLowerCase().includes(q)
-      );
-    },
-
-    filteredUnitReferensi() {
-      const q = String(this.unitSearch || '').toLowerCase().trim();
-      if (!q) return this.unitList || [];
-      return (this.unitList || []).filter(u =>
-        String(u.kode_unit || '').toLowerCase().includes(q) ||
-        String(u.nama_unit || '').toLowerCase().includes(q)
-      );
-    },
-
-    filteredJabatanReferensi() {
-      const q = String(this.jabatanSearch || '').toLowerCase().trim();
-      if (!q) return this.jabatanList || [];
-      return (this.jabatanList || []).filter(j =>
-        String(j.kode_jabatan || '').toLowerCase().includes(q) ||
-        String(j.nama_jabatan || '').toLowerCase().includes(q)
-      );
-    },
-
-    // Paginated Referensi SIMPEG
-    paginatedPegawaiReferensi() {
-      const start = (this.pegawaiRefPage - 1) * this.pageSize;
-      return this.filteredPegawaiReferensi.slice(start, start + this.pageSize);
-    },
-
-    paginatedUnitReferensi() {
-      const start = (this.unitRefPage - 1) * this.pageSize;
-      return this.filteredUnitReferensi.slice(start, start + this.pageSize);
-    },
-
-    paginatedJabatanReferensi() {
-      const start = (this.jabatanRefPage - 1) * this.pageSize;
-      return this.filteredJabatanReferensi.slice(start, start + this.pageSize);
-    }
-  },
-
-  methods: {
-    // ================= NAVIGASI & THEME =================
-    // Portal butuh ?redirect= (kontrak doGet Global) agar tahu URL kembali + tiket.
-    // back = URL SILAHAR ini (otomatis benar di /exec maupun /dev).
-    goToPlatform() {
-      var platform = 'https://script.google.com/macros/s/AKfycbwh_OUVqmxLcuF81FHmPZtT33Wrm8Ce9Da1SQ3hfkSr7gM5P8ofyAlHSgW40mq3eo-PoQ/exec';
-      var back = window.location.href.split('?')[0];
-      window.location.href = platform + '?redirect=' + encodeURIComponent(back);
-    },
-
-
-    navigateTo(menu) {
-      // F9: cegah non-admin membuka pengaturan (lapis UX; backend tetap menolak)
-      if (menu === 'pengaturan' && !this.isAdmin) {
-        this.showToast('Halaman khusus administrator', 'error');
-        return;
-      }
-      this.currentPage = menu;
-      this.sidebarMobileOpen = false;
-
-      if (menu === 'master_data') {
-        this.loadLaporan(1);
-        this.loadedPages['master_data'] = true;
-      }
-      else if (menu === 'riwayat_laporan') {
-        this.loadRiwayat(1);
-        this.loadedPages['riwayat_laporan'] = true;
-      }
-      else if (menu === 'analisa' && !this.loadedPages['analisa']) {
-        this.loadAnalisa();
-        this.loadedPages['analisa'] = true;
-      }
-      else if (menu === 'profil' && !this.loadedPages['profil']) {
-        this.loadProfil();
-        this.loadedPages['profil'] = true;
-      }
-      else if (menu === 'pengaturan' && !this.loadedPages['pengaturan']) {
-        this.loadConfig();
-        this.loadedPages['pengaturan'] = true;
-      }
-    },
-
-    toggleSidebar() {
-      this.sidebarCollapsed = !this.sidebarCollapsed;
-    },
-
-    toggleDarkMode() {
-      this.isDarkMode = !this.isDarkMode;
-      localStorage.setItem('silahar_dark', this.isDarkMode);
-      document.documentElement.classList.toggle('dark', this.isDarkMode);
-      this.renderDashboardCharts();
-    },
-
-    // ================= GAS BACKEND BRIDGE =================
-    callServer(action, data = {}) {
-      console.log(`[callServer] Aksi: '${action}'`, data);
-      return new Promise((resolve, reject) => {
-        if (typeof google === 'undefined' || !google.script || !google.script.run) {
-          const mockError = 'Google Script Run Environment tidak tersedia.';
-          console.warn('[callServer]', mockError);
-          resolve({ success: false, error: mockError });
-          return;
-        }
-
-        google.script.run
-          .withSuccessHandler((res) => {
-            console.log(`[callServer] Res '${action}':`, res);
-            res = res || { success: false, error: 'Respons kosong dari server' };
-            if (res && res.code === 'UNAUTHORIZED') this.handleSessionExpired(); // F1
-            resolve(res);
-          })
-          .withFailureHandler((err) => {
-            console.error(`[callServer] Fail '${action}':`, err);
-            reject(new Error(err.message || 'Gagal terhubung ke server'));
-          })
-          .handleAction({ action, data, token: this.token });
-      });
-    },
-
-    // F1: sesi mati/kedaluwarsa → bersihkan + kembali ke layar login
-    handleSessionExpired() {
-      this.token = '';
-      this.currentUser = {};
-      this.dataLoaded = false;
-      this.loadedPages = {};
-      sessionStorage.removeItem('silahar_token');
-      sessionStorage.removeItem('silahar_user');
-      this.currentPage = 'dashboard';
-      this.errorMessage = 'Sesi berakhir, silakan login ulang.';
-      this.showToast('Sesi berakhir, silakan login ulang', 'error');
-    },
-
-    // F3: admin boleh semua; non-admin hanya baris miliknya sendiri
-    canEditLaporan(item) {
-      if (this.isAdmin) return true;
-      const mine = this.currentUser && this.currentUser.pegawai_id;
-      return !!mine && !!item && String(item.pegawai_id) === String(mine);
-    },
-
-    // ================= LOAD REFERENSI DATA =================
-    async loadReferensi() {
-      try {
-        const [pegawaiRes, unitRes, jabatanRes] = await Promise.all([
-          this.callServer('get_pegawai_list'),
-          this.callServer('get_unit_list'),
-          this.callServer('get_jabatan_list')
-        ]);
-
-        if (pegawaiRes && pegawaiRes.success) {
-          this.pegawaiList = Array.isArray(pegawaiRes.data) ? pegawaiRes.data : [];
-        } else {
-          this.showToast('Gagal memuat data pegawai: ' + ((pegawaiRes && pegawaiRes.error) || ''), 'error');
-        }
-        if (unitRes && unitRes.success) {
-          this.unitList = Array.isArray(unitRes.data) ? unitRes.data : [];
-        } else {
-          this.showToast('Gagal memuat data unit kerja: ' + ((unitRes && unitRes.error) || ''), 'error');
-        }
-        if (jabatanRes && jabatanRes.success) {
-          this.jabatanList = Array.isArray(jabatanRes.data) ? jabatanRes.data : [];
-        } else {
-          this.showToast('Gagal memuat data jabatan: ' + ((jabatanRes && jabatanRes.error) || ''), 'error');
-        }
-      } catch (e) {
-        console.error('[loadReferensi] Error:', e);
-        this.showToast('Gagal memuat data referensi: ' + e.message, 'error');
-      }
-    },
-
-    // ================= LOGIN & INITIALIZATION =================
-    async loginViaPlatformTicket(ticket) {
-      this.isProcessing = true;
-      this.errorMessage = '';
-      try {
-        const res = await this.callServer('exchange_platform_ticket', { ticket });
-        if (res.success && res.data && res.data.token) {
-          this.token = res.data.token;
-          this.currentUser = res.data.user || {};
-          sessionStorage.setItem('silahar_token', this.token);
-          sessionStorage.setItem('silahar_user', JSON.stringify(this.currentUser));
-          window.history.replaceState({}, document.title, window.location.pathname);
-          await this.initApp();
-        } else {
-          this.errorMessage = res.error || 'Gagal memvalidasi tiket Single Sign-On.';
-        }
-      } catch (e) {
-        this.errorMessage = 'Terjadi kesalahan sistem: ' + e.message;
-      } finally {
-        this.isProcessing = false;
-      }
-    },
-
-    async initApp() {
-      if (this.dataLoaded) return;
-      await this.loadDashboard();
-      await this.loadReferensi();
-      await this.loadAnalisa();
-      this.dataLoaded = true;
-      this.renderDashboardCharts();
-    },
-
-    async loadDashboard() {
-      this.loading = true;
-      try {
-        const res = await this.callServer('dashboard');
-        if (res.success) {
-          this.dashboardData = res.data || {};
-        } else {
-          this.showToast(res.error || 'Gagal memuat data dashboard', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async refreshDashboard() {
-      await this.loadDashboard();
-      await this.loadReferensi();
-      await this.loadAnalisa();
-      this.renderDashboardCharts();
-      this.showToast('Dashboard diperbarui');
-    },
-
-    renderDashboardCharts() {
-      this.$nextTick(() => {
-        const isDark = this.isDarkMode;
-        const textColor = isDark ? '#cbd5e1' : '#334155';
-        const gridColor = isDark ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
-
-        // Chart 1: Doughnut Jenis Kegiatan
-        const ctx1 = document.getElementById('chartJenisKegiatan');
-        if (ctx1) {
-          if (this._chartJenisKegiatan) this._chartJenisKegiatan.destroy();
-          const jenisCounts = (this.dashboardData && this.dashboardData.jenis_count) || {};
-          const labels = Object.keys(jenisCounts).map(k => k.toUpperCase());
-          const data = Object.values(jenisCounts);
-
-          this._chartJenisKegiatan = new Chart(ctx1, {
-            type: 'doughnut',
-            data: {
-              labels,
-              datasets: [{
-                    data: data.length ? data : [1],
-                    backgroundColor: ['#3b82f6', '#f59e0b', '#a855f7', '#14b8a6', '#f97316', '#64748b'],
-                borderWidth: 2,
-                borderColor: isDark ? '#0f172a' : '#ffffff'
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { position: 'bottom', labels: { color: textColor, font: { weight: 'bold', size: 10 } } }
-              }
-            }
-          });
-        }
-
-        // Chart 2: Bar Laporan Tanggal
-        const ctx2 = document.getElementById('chartLaporanTanggal');
-        if (ctx2) {
-          if (this._chartLaporanTanggal) this._chartLaporanTanggal.destroy();
-          const tanggalCounts = (this.dashboardData && this.dashboardData.tanggal_count) || {};
-          const labels = Object.keys(tanggalCounts).sort();
-          const data = labels.map(tgl => tanggalCounts[tgl]);
-
-          this._chartLaporanTanggal = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-              labels,
-              datasets: [{
-                label: 'Jumlah Laporan',
-                data,
-                backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                borderRadius: 8
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                x: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
-                y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } }
-              },
-              plugins: {
-                legend: { display: false }
-              }
-            }
-          });
-        }
-      });
-    },
-
-    async logout() {
-      try { await this.callServer('logout'); } catch (e) {}
-      this.token = '';
-      this.currentUser = {};
-      this.dataLoaded = false;
-      this.loadedPages = {};
-      sessionStorage.removeItem('silahar_token');
-      sessionStorage.removeItem('silahar_user');
-      this.currentPage = 'dashboard';
-    },
-
-    // ================= MASTER LAPORAN HARIAN =================
-    async loadLaporan(page = 1) {
-      this.laporanPage = page;
-      this.laporanLoading = true;
-
-      try {
-        const res = await this.callServer('get_laporan_list', {
-          page,
-          limit: this.pageSize,
-          search: this.laporanSearch
-        });
-
-        if (res && res.success) {
-          this.laporanList = Array.isArray(res.data) ? res.data : [];
-          this.laporanTotalPages = res.meta?.total_pages || 1;
-          this.laporanTotalData = res.meta?.total || this.laporanList.length;
-        } else {
-          this.laporanList = [];
-          this.showToast(res.error || 'Gagal memuat data laporan harian', 'error');
-        }
-      } catch (e) {
-        this.laporanList = [];
-        this.showToast('Gagal memuat laporan: ' + e.message, 'error');
-      } finally {
-        this.laporanLoading = false;
-      }
-    },
-
-    openLaporanForm(item = null) {
-      if (item) {
-        let tglFormatted = item.tanggal || '';
-        if (tglFormatted.includes('T')) {
-          tglFormatted = tglFormatted.slice(0, 10);
-        }
-        this.laporanForm = { ...item, tanggal: tglFormatted };
-      } else {
-        this.laporanForm = {
-          id: '',
-          pegawai_id: (this.currentUser && this.currentUser.pegawai_id) || '',
-          tanggal: this.todayIso_(),
-          waktu_mulai: '',
-          waktu_selesai: '',
-          jenis_kegiatan: 'rutin',
-          deskripsi: '',
-          hasil: '',
-          kendala: '',
-          tindak_lanjut: '',
-          file_url: ''
-        };
-      }
-      this.showLaporanForm = true;
-    },
-
-    async saveLaporan() {
-      this.laporanSaving = true;
-      try {
-        // F4: handler khusus (proteksi pemilik + kunci verifikasi di server)
-        const res = await this.callServer('save_laporan', { record: this.laporanForm });
-        if (res.success) {
-          this.showLaporanForm = false;
-          await this.loadLaporan(this.laporanPage);
-          await this.loadDashboard();
-          this.showToast('Laporan harian berhasil disimpan');
-        } else {
-          this.showToast(res.error || 'Gagal menyimpan laporan', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.laporanSaving = false;
-      }
-    },
-
-    confirmDeleteLaporan(item) {
-      this.deleteLaporan(item);
-    },
-
-    async deleteLaporan(item) {
-      if (!confirm(`Hapus laporan kegiatan "${item.deskripsi || item.id}"?`)) return;
-      try {
-        // F4: handler khusus (proteksi pemilik di server)
-        const res = await this.callServer('delete_laporan', { id: item.id });
-        if (res.success) {
-          await this.loadLaporan(this.laporanPage);
-          await this.loadDashboard();
-          this.showToast('Laporan berhasil dihapus');
-        } else {
-          this.showToast(res.error || 'Gagal menghapus laporan', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      }
-    },
-
-    // F5: verifikasi khusus admin (prompt catatan, revisi wajib isi)
-    async verifikasiLaporan(item, status) {
-      const catatan = prompt(status === 'disetujui' ? 'Catatan persetujuan (opsional):' : 'Catatan revisi (wajib diisi):', '');
-      if (catatan === null) return;
-      if (status === 'revisi' && !String(catatan).trim()) { this.showToast('Catatan revisi wajib diisi', 'error'); return; }
-      try {
-        const res = await this.callServer('verifikasi_laporan', { id: item.id, status: status, catatan_atasan: catatan || '' });
-        if (res.success) {
-          await this.loadLaporan(this.laporanPage);
-          this.showToast('Laporan ' + status);
-        } else {
-          this.showToast(res.error || 'Gagal verifikasi', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      }
-    },
-
-    resetLaporanFilter() {
-      this.laporanSearch = '';
-      this.loadLaporan(1);
-    },
-
-    // F5: ketikan search didebounce 400ms (hemat request server)
-    debouncedLoadLaporan() {
-      clearTimeout(this._searchTimerLaporan);
-      this._searchTimerLaporan = setTimeout(() => this.loadLaporan(1), 400);
-    },
-    debouncedLoadRiwayat() {
-      clearTimeout(this._searchTimerRiwayat);
-      this._searchTimerRiwayat = setTimeout(() => this.loadRiwayat(1), 400);
-    },
-
-    exportLaporanExcel() {
-      if (typeof XLSX === 'undefined') { this.showToast('Library Excel tidak termuat', 'error'); return; }
-      const ws = XLSX.utils.json_to_sheet(this.laporanList);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Laporan Harian');
-      XLSX.writeFile(wb, `Laporan_Harian_${this.todayIso_()}.xlsx`);
-    },
-
-    // ================= PAGINATION HELPER PEGAWAI / UNIT / JABATAN =================
-    loadPegawai(page) {
-      this.pegawaiRefPage = page;
-    },
-    resetPegawaiFilter() {
-      this.pegawaiSearch = '';
-      this.pegawaiRefPage = 1;
-    },
-    exportPegawaiExcel() {
-      if (typeof XLSX === 'undefined') return;
-      const ws = XLSX.utils.json_to_sheet(this.pegawaiList);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Pegawai');
-      XLSX.writeFile(wb, 'Data_Pegawai.xlsx');
-    },
-    exportPegawaiPDF() {
-      if (typeof jspdf === 'undefined' || !jspdf.jsPDF) return;
-      const { jsPDF } = jspdf;
-      const doc = new jsPDF();
-      doc.autoTable({
-        head: [['No', 'NIP', 'Nama', 'Email', 'Unit']],
-        body: this.pegawaiList.map((p, i) => [i + 1, p.nip, p.nama, p.email, this.namaUnit(p.unit_id)])
-      });
-      doc.save('Data_Pegawai.pdf');
-    },
-
-    loadJabatan(page) {
-      this.jabatanRefPage = page;
-    },
-    resetJabatanFilter() {
-      this.jabatanSearch = '';
-      this.jabatanRefPage = 1;
-    },
-
-    loadUnit(page) {
-      this.unitRefPage = page;
-    },
-    resetUnitFilter() {
-      this.unitSearch = '';
-      this.unitRefPage = 1;
-    },
-
-    // ================= RIWAYAT LAPORAN =================
-    async loadRiwayat(page = 1) {
-      this.riwayatPage = page;
-      this.riwayatLoading = true;
-      try {
-        const filters = {
-          tanggal: this.riwayatFilterTanggal,
-          pegawai_id: this.riwayatFilterPegawai,
-          jenis_kegiatan: this.riwayatFilterJenis
-        };
-        // F4: handler khusus (filter tanggal robust + search + sortir terbaru)
-        const res = await this.callServer('get_riwayat_list', {
-          entity: 'LAPORAN_HARIAN',
-          page,
-          limit: this.pageSize,
-          search: this.riwayatSearch,
-          filters: JSON.stringify(filters)
-        });
-
-        if (res.success) {
-          this.riwayatList = res.data || [];
-          this.riwayatTotalPages = res.meta?.total_pages || 1;
-          this.riwayatTotalData = res.meta?.total || this.riwayatList.length;
-        } else {
-          this.showToast(res.error || 'Gagal memuat riwayat laporan', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.riwayatLoading = false;
-      }
-    },
-
-    resetRiwayatFilter() {
-      this.riwayatFilterTanggal = '';
-      this.riwayatFilterPegawai = '';
-      this.riwayatFilterJenis = '';
-      this.riwayatSearch = '';
-      this.loadRiwayat(1);
-    },
-
-    exportRiwayatExcel() {
-      if (typeof XLSX === 'undefined') return;
-      const ws = XLSX.utils.json_to_sheet(this.riwayatList);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Riwayat Laporan');
-      XLSX.writeFile(wb, `Riwayat_Laporan_${this.todayIso_()}.xlsx`);
-    },
-
-    exportRiwayatPDF() {
-      if (typeof jspdf === 'undefined' || !jspdf.jsPDF) return;
-      const { jsPDF } = jspdf;
-      const doc = new jsPDF();
-      doc.autoTable({
-        head: [['No', 'Tanggal', 'Pegawai', 'Jenis', 'Deskripsi']],
-        body: this.riwayatList.map((item, i) => [
-          i + 1,
-          this.formatDateDisplay(item.tanggal),
-          this.namaPegawai(item.pegawai_id),
-          item.jenis_kegiatan,
-          item.deskripsi
-        ])
-      });
-      doc.save(`Riwayat_Laporan_${this.todayIso_()}.pdf`);
-    },
-
-    // ================= ANALISA =================
-    async loadAnalisa() {
-      this.analisaLoading = true;
-      try {
-        const res = await this.callServer('analytics');
-        if (res.success) {
-          this.analisaData = res.data || {};
-        } else {
-          this.showToast(res.error || 'Gagal memuat analisa', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.analisaLoading = false;
-      }
-    },
-
-    // ================= PROFIL =================
-    async loadProfil() {
-      this.profilLoading = true;
-      try {
-        // F4: profil diperkaya (termasuk pangkat_golongan dari master)
-        const res = await this.callServer('get_my_profile');
-        if (res.success) {
-          this.myProfile = res.data || {};
-          this.editProfilForm = {
-            alamat: res.data.alamat || '',
-            no_hp: res.data.no_hp || '',
-            email: res.data.email || ''
-          };
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.profilLoading = false;
-      }
-    },
-
-    toggleEditProfil() {
-      this.isEditingProfil = !this.isEditingProfil;
-    },
-
-    async saveProfil() {
-      this.profilSaving = true;
-      try {
-        const res = await this.callServer('save_my_profile', this.editProfilForm);
-        if (res.success) {
-          this.isEditingProfil = false;
-          await this.loadProfil();
-          this.showToast('Profil diperbarui');
-        } else {
-          this.showToast(res.error || 'Profil berasal dari SIMPEG', 'info');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.profilSaving = false;
-      }
-    },
-
-    // ================= PENGATURAN =================
-    async loadConfig() {
-      this.configLoading = true;
-      try {
-        const res = await this.callServer('get_config');
-        if (res.success) this.configList = res.data || [];
-      } catch (e) {
-        console.error(e);
-      } finally {
-        this.configLoading = false;
-      }
-    },
-
-    openAddConfig() {
-      this.selectedConfig = null;
-      this.editConfigKey = '';
-      this.editConfigValue = '';
-      this.editConfigKeterangan = '';
-      this.showEditConfig = true;
-    },
-
-    openEditConfig(config) {
-      this.selectedConfig = config;
-      this.editConfigKey = config.key;
-      this.editConfigValue = config.value || '';
-      this.editConfigKeterangan = config.keterangan || '';
-      this.showEditConfig = true;
-    },
-
-    async saveConfig() {
-      this.configSaving = true;
-      try {
-        const res = await this.callServer('save_config_item', {
-          key: this.editConfigKey,
-          value: this.editConfigValue,
-          keterangan: this.editConfigKeterangan
-        });
-        if (res.success) {
-          this.showEditConfig = false;
-          await this.loadConfig();
-          this.showToast('Konfigurasi berhasil disimpan');
-        } else {
-          this.showToast(res.error || 'Gagal menyimpan konfigurasi', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.configSaving = false;
-      }
-    },
-
-    async deleteConfig(config) {
-      if (!confirm(`Hapus permanen konfigurasi "${config.key}"?`)) return;
-      try {
-        const res = await this.callServer('delete', { entity: 'KONFIGURASI', id: config.id });
-        if (res.success) {
-          await this.loadConfig();
-          this.showToast('Konfigurasi dihapus');
-        } else {
-          this.showToast(res.error || 'Gagal menghapus konfigurasi', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      }
-    },
-
-    // ================= HELPER & UTILITAS =================
-    todayIso_() {
-      return new Date().toISOString().slice(0, 10);
-    },
-
-    formatDateDisplay(val) {
-      if (!val) return '-';
-      try {
-        const d = new Date(val);
-        if (isNaN(d.getTime())) return String(val);
-        return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      } catch (e) {
-        return String(val);
-      }
-    },
-
-    namaPegawai(id) {
-      if (!Array.isArray(this.pegawaiList) || !id) return '-';
-      const p = this.pegawaiList.find(item => String(item.pegawai_id) === String(id));
-      return p ? p.nama : id;
-    },
-
-    namaUnit(id) {
-      if (!Array.isArray(this.unitList) || !id) return '-';
-      const u = this.unitList.find(item => String(item.unit_id) === String(id));
-      return u ? u.nama_unit : id;
-    },
-
-    namaJabatan(id) {
-      if (!Array.isArray(this.jabatanList) || !id) return '-';
-      const j = this.jabatanList.find(item => String(item.jabatan_id) === String(id));
-      return j ? j.nama_jabatan : id;
-    },
-
-    showToast(message, type = 'success') {
-      const id = Date.now() + Math.random();
-      this.toasts.push({ id, message, type });
-      setTimeout(() => this.removeToast(id), 4000);
-    },
-
-    removeToast(id) {
-      this.toasts = this.toasts.filter(t => t.id !== id);
-    },
-
-    // F2: tiket → login; session tersimpan → VERIFIKASI dulu baru initApp
-    async processInitialAuth(ticket) {
-      if (ticket) {
-        this.loginViaPlatformTicket(ticket);
-        return;
-      }
-      const storedToken = sessionStorage.getItem('silahar_token');
-      const storedUser = sessionStorage.getItem('silahar_user');
-      if (storedToken && storedUser) {
-        this.token = storedToken;
-        try { this.currentUser = JSON.parse(storedUser); } catch(e) {}
-        const res = await this.callServer('get_profile'); // token mati → F1 yang tangani
-        if (res && res.success) await this.initApp();
-      }
-    }
-  },
-
-  mounted() {
-    // Inisialisasi Mode Gelap
-    document.documentElement.classList.toggle('dark', this.isDarkMode);
-
-    // Ekstraksi Tiket SSO URL
-    let ticket = '';
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      ticket = urlParams.get('ticket') || '';
-    } catch (e) {}
-
-    if (!ticket && typeof google !== 'undefined' && google.script && google.script.url) {
-      google.script.url.getLocation((location) => {
-        ticket = (location.parameter && location.parameter.ticket) || '';
-        this.processInitialAuth(ticket);
-      });
-    } else {
-      this.processInitialAuth(ticket);
-    }
-  }
-});
-
-app.mount('#app');
-
-
-  </script>
+  <!-- Vue 3 Production Build (pinned) -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.42/dist/vue.global.prod.js"></script>
+
+  <!-- Kit ekosistem JS v2.7.5: komponen + core + modules (app-profile/app-settings) -->
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-components.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-modules.min.js"></script>
+
+  <!-- Logika aplikasi: modul J_* (urutan WAJIB: State -> Api -> Actions ->
+       Export -> Kinerja -> App). G18c-2: J_Kinerja = modul e-Kinerja. -->
+  <?!= include('J_State'); ?>
+  <?!= include('J_Helpers'); ?>
+  <?!= include('J_Api'); ?>
+  <?!= include('J_Actions'); ?>
+  <?!= include('J_Export'); ?>
+  <?!= include('J_Kinerja'); ?>
+  <?!= include('J_App'); ?>
 </body>
 </html>
