@@ -1,109 +1,39 @@
 <script>
 // ============================================================
-// SILAHAR - J_Api.html (G14/G15, 2026-09-18)
-// Loader data aplikasi: dashboard, laporan, riwayat, analisa, profil, konfigurasi.
-// G15: callServer/handleSessionExpired/auth/loadReferensi DIHAPUS — AppCore yang
-// menyediakan (loadMasterSIMPEG mengganti loadReferensi; aksi backend get_pegawai_list/
-// get_unit_list/get_jabatan_list dipakai via fallback-nya).
+// SILAHAR - J_Api.html (G18c-2 CLEANUP, 2026-09-19)
+// ------------------------------------------------------------
+// Loader data aplikasi: laporan v1 + profil.
+//
+// G15 (2026-09-18): callServer/handleSessionExpired/auth/loadReferensi
+// DIHAPUS — AppCore yang menyediakan (loadMasterSIMPEG menggantikan
+// loadReferensi).
+//
+// G18c-2 CLEANUP (2026-09-19): dead code v1 & orphan method DIHAPUS:
+//   - loadDashboard / refreshDashboard / renderDashboardCharts
+//     (T1) — V_Dashboard pakai loadDashboardKinerja v2; Chart.js
+//     tidak lagi dimuat statis, renderDashboardCharts akan
+//     ReferenceError bila dipanggil.
+//   - loadRiwayat / debouncedLoadRiwayat — V_RiwayatLaporan.html
+//     sudah tidak di-include sejak G18c.
+//   - loadAnalisa — V_Analisa.html orphan; analisa tim via
+//     analisa_kinerja v2 (di J_Kinerja).
+//   - loadConfig — V_Pengaturan.html pakai <app-settings> kit
+//     (self-contained).
+//   - loadPegawai/loadJabatan/loadUnit — V_Master.html pakai
+//     computed pegawaiRefFiltered/jabatanRefFiltered/unitRefFiltered
+//     (di J_Kinerja).
+//
+// YANG TERSISA (3 method) — pemakai jelas:
+//   - loadLaporan        → V_Master.html tab 'laporan' (via
+//                          loadMasterKinerja J_Kinerja).
+//   - debouncedLoadLaporan → search debounce tab 'laporan'.
+//   - loadProfil         → loadPaspor() J_Kinerja (enrich myProfile).
 // ============================================================
 window.SilaharApi = {
   methods: {
 
-    async loadDashboard() {
-      this.loading = true;
-      try {
-        const res = await this.callServer('dashboard');
-        if (res.success) {
-          this.dashboardData = res.data || {};
-        } else {
-          this.showToast(res.error || 'Gagal memuat data dashboard', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async refreshDashboard() {
-      await this.loadDashboard();
-      await this.loadMasterSIMPEG(true); // G15: pengganti loadReferensi (AppCore, force reload)
-      await this.loadAnalisa();
-      this.renderDashboardCharts();
-      this.showToast('Dashboard diperbarui');
-    },
-
-    renderDashboardCharts() {
-      this.$nextTick(() => {
-        const isDark = this.isDarkMode;
-        const textColor = isDark ? '#cbd5e1' : '#334155';
-        const gridColor = isDark ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
-
-        // Chart 1: Doughnut Jenis Kegiatan
-        const ctx1 = document.getElementById('chartJenisKegiatan');
-        if (ctx1) {
-          if (this._chartJenisKegiatan) this._chartJenisKegiatan.destroy();
-          const jenisCounts = (this.dashboardData && this.dashboardData.jenis_count) || {};
-          const labels = Object.keys(jenisCounts).map(k => k.toUpperCase());
-          const data = Object.values(jenisCounts);
-
-          this._chartJenisKegiatan = new Chart(ctx1, {
-            type: 'doughnut',
-            data: {
-              labels,
-              datasets: [{
-                    data: data.length ? data : [1],
-                    backgroundColor: ['#3b82f6', '#f59e0b', '#a855f7', '#14b8a6', '#f97316', '#64748b'],
-                borderWidth: 2,
-                borderColor: isDark ? '#0f172a' : '#ffffff'
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { position: 'bottom', labels: { color: textColor, font: { weight: 'bold', size: 10 } } }
-              }
-            }
-          });
-        }
-
-        // Chart 2: Bar Laporan Tanggal
-        const ctx2 = document.getElementById('chartLaporanTanggal');
-        if (ctx2) {
-          if (this._chartLaporanTanggal) this._chartLaporanTanggal.destroy();
-          const tanggalCounts = (this.dashboardData && this.dashboardData.tanggal_count) || {};
-          const labels = Object.keys(tanggalCounts).sort();
-          const data = labels.map(tgl => tanggalCounts[tgl]);
-
-          this._chartLaporanTanggal = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-              labels,
-              datasets: [{
-                label: 'Jumlah Laporan',
-                data,
-                backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                borderRadius: 8
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                x: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
-                y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } }
-              },
-              plugins: {
-                legend: { display: false }
-              }
-            }
-          });
-        }
-      });
-    },
-
-    // ================= MASTER LAPORAN HARIAN =================
+    // ================= LAPORAN HARIAN v1 (tab Laporan V_Master) =================
+    // Server-side pagination + search (action backend: get_laporan_list).
     async loadLaporan(page = 1) {
       this.laporanPage = page;
       this.laporanLoading = true;
@@ -137,73 +67,18 @@ window.SilaharApi = {
       this._searchTimerLaporan = setTimeout(() => this.loadLaporan(1), 400);
     },
 
-    // ================= RIWAYAT LAPORAN =================
-    async loadRiwayat(page = 1) {
-      this.riwayatPage = page;
-      this.riwayatLoading = true;
-      try {
-        const filters = {
-          tanggal: this.riwayatFilterTanggal,
-          pegawai_id: this.riwayatFilterPegawai,
-          jenis_kegiatan: this.riwayatFilterJenis
-        };
-        // F4: handler khusus (filter tanggal robust + search + sortir terbaru)
-        const res = await this.callServer('get_riwayat_list', {
-          entity: 'LAPORAN_HARIAN',
-          page,
-          limit: this.pageSize,
-          search: this.riwayatSearch,
-          filters: JSON.stringify(filters)
-        });
-
-        if (res.success) {
-          this.riwayatList = res.data || [];
-          this.riwayatTotalPages = res.meta?.total_pages || 1;
-          this.riwayatTotalData = res.meta?.total || this.riwayatList.length;
-        } else {
-          this.showToast(res.error || 'Gagal memuat riwayat laporan', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.riwayatLoading = false;
-      }
-    },
-
-    debouncedLoadRiwayat() {
-      clearTimeout(this._searchTimerRiwayat);
-      this._searchTimerRiwayat = setTimeout(() => this.loadRiwayat(1), 400);
-    },
-
-    // ================= ANALISA =================
-    async loadAnalisa() {
-      this.analisaLoading = true;
-      try {
-        const res = await this.callServer('analytics');
-        if (res.success) {
-          this.analisaData = res.data || {};
-        } else {
-          this.showToast(res.error || 'Gagal memuat analisa', 'error');
-        }
-      } catch (e) {
-        this.showToast(e.message, 'error');
-      } finally {
-        this.analisaLoading = false;
-      }
-    },
-
-    // ================= PROFIL =================
+    // ================= PROFIL (dipakai loadPaspor J_Kinerja) =================
+    // F4: profil diperkaya (termasuk pangkat_golongan dari master).
     async loadProfil() {
       this.profilLoading = true;
       try {
-        // F4: profil diperkaya (termasuk pangkat_golongan dari master)
         const res = await this.callServer('get_my_profile');
         if (res.success) {
           this.myProfile = res.data || {};
           this.editProfilForm = {
-            alamat: res.data.alamat || '',
-            no_hp: res.data.no_hp || '',
-            email: res.data.email || ''
+            alamat:  res.data.alamat  || '',
+            no_hp:   res.data.no_hp   || '',
+            email:   res.data.email   || ''
           };
         }
       } catch (e) {
@@ -211,32 +86,6 @@ window.SilaharApi = {
       } finally {
         this.profilLoading = false;
       }
-    },
-
-    // ================= PENGATURAN =================
-    async loadConfig() {
-      this.configLoading = true;
-      try {
-        const res = await this.callServer('get_config');
-        if (res.success) this.configList = res.data || [];
-      } catch (e) {
-        console.error(e);
-      } finally {
-        this.configLoading = false;
-      }
-    },
-
-    // ================= PAGINATION HELPER PEGAWAI / UNIT / JABATAN =================
-    loadPegawai(page) {
-      this.pegawaiRefPage = page;
-    },
-
-    loadJabatan(page) {
-      this.jabatanRefPage = page;
-    },
-
-    loadUnit(page) {
-      this.unitRefPage = page;
     }
 
   }
