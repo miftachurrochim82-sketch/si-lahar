@@ -1,0 +1,295 @@
+<!-- ============================================================
+     SILAHAR - V_Profil.html (G19b PASPOR KINERJA, 2026-09-18)
+     Keputusan pemilik: profil = PROFIL KINERJA pegawai, bukan
+     sekadar identitas. Rancangan: docs/09_PROFIL_KINERJA.md.
+     Struktur meniru Paspor ASN si-kompetensi v5.3.0 (hero →
+     kartu identitas + speedometer → sub-tab ber-count), isi =
+     domain e-Kinerja Harian. Kit: <app-crud-table>, <app-badge>,
+     <app-empty-state>, <app-skeleton>, <app-profile> (tab Kontak).
+     Data: 100% API yang sudah hidup (dashboard_kinerja +
+     get_realisasi_list + get_rekap_list + get_rhk_list +
+     get_my_profile) — NOL perubahan backend. Loader: loadPaspor()
+     di J_Kinerja, dipicu onNavigate('profil').
+     v2 (antre backend v2.3.0): simulasi pegawai utk admin +
+     cetak PDF paspor (tombol belum ditampilkan — konvensi
+     disabled+title 05_UIUX bila nanti dibuat).
+     ============================================================ -->
+<section v-if="currentPage === 'profil'" class="space-y-6 animate-fade-in">
+
+  <!-- ================= HERO + PEMILIH BULAN ================= -->
+  <div class="p-5 rounded-3xl border shadow-sm bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 border-emerald-900 text-white dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 dark:border-slate-800 relative overflow-hidden">
+    <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+          e-Kinerja Harian
+        </span>
+        <h1 class="text-xl sm:text-2xl font-black mt-2 tracking-tight flex items-center gap-2.5">
+          <i class="fa-solid fa-id-card-clip text-emerald-300"></i>
+          Paspor Kinerja ASN
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-300 mt-1">
+          Identitas, capaian bulanan, transkrip realisasi terverifikasi, riwayat SKP Bulanan &amp; RHK aktif.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <select :value="profilPeriode" @change="setProfilPeriode($event.target.value)"
+                class="input text-xs py-2 px-3 rounded-xl border-0 bg-white/95 dark:bg-slate-700 font-bold text-slate-800 dark:text-slate-100 max-w-[190px]">
+          <option v-for="o in profilPeriodeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+        </select>
+        <button @click="loadPaspor()" title="Muat ulang paspor"
+                class="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2">
+          <i class="fa-solid fa-rotate"></i> Segarkan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <app-skeleton v-if="pasporLoading && !pasporKartu" type="cards" :count="2"></app-skeleton>
+
+  <!-- ================= BARIS 1: IDENTITAS + SPEEDOMETER ================= -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- Kartu Identitas (col 7) -->
+    <div class="lg:col-span-7 card p-5 flex flex-col justify-between">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div class="relative">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-black text-2xl flex items-center justify-center shadow-md border-2 border-white dark:border-slate-800">
+            {{ (pasporIdentitas.nama || 'A').charAt(0).toUpperCase() }}
+          </div>
+          <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] text-white"
+                title="Terverifikasi SIMPEG">
+            <i class="fa-solid fa-check"></i>
+          </span>
+        </div>
+        <div class="space-y-1 flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="text-base font-black text-slate-900 dark:text-white truncate">{{ pasporIdentitas.nama }}</h3>
+            <app-badge v-if="pasporIdentitas.role" size="sm" status="info" :label="pasporIdentitas.role.toUpperCase()"></app-badge>
+          </div>
+          <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400">{{ pasporIdentitas.jabatan || '—' }}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">{{ pasporIdentitas.unit || '—' }}</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 text-xs">
+        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">NIP</span>
+          <span class="font-bold text-slate-800 dark:text-slate-200">{{ pasporIdentitas.nip || '—' }}</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Pangkat / Gol.</span>
+          <span class="font-bold text-slate-800 dark:text-slate-200">{{ pasporIdentitas.pangkat || '—' }}</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">RHK Aktif</span>
+          <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ pasporRhkAktif.length }} butir</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Transkrip</span>
+          <span class="font-bold text-slate-800 dark:text-slate-200">{{ pasporRealisasi.length }} laporan (maks 50)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Speedometer Bulan Terpilih (col 5) -->
+    <div class="lg:col-span-5 card p-5 bg-gradient-to-br from-emerald-500/10 via-white to-white dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900 border-emerald-200/80 dark:border-emerald-800/60 flex flex-col justify-between">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Capaian Bulan Terpilih</span>
+          <span class="text-[11px] text-slate-400">PermenPANRB 6/2022 — predikat v1 kuantitas</span>
+        </div>
+        <span class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-black text-slate-600 dark:text-slate-300 shrink-0">
+          {{ profilPeriode || '—' }}
+        </span>
+      </div>
+
+      <template v-if="pasporKartu">
+        <div class="my-3 flex items-baseline justify-between">
+          <div>
+            <div class="text-3xl font-black"
+                 :class="pasporKartu.capaian_bulan_pct >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'">
+              {{ pasporKartu.capaian_bulan_pct }}<span class="text-sm font-semibold text-slate-500 dark:text-slate-400">%</span>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              {{ pasporKartu.total_realisasi }} realisasi / {{ pasporKartu.total_rencana }} rencana ·
+              {{ pasporKartu.menunggu_verifikasi }} menunggu verifikasi
+            </p>
+          </div>
+          <div class="text-right">
+            <app-badge v-if="pasporKartu.kandidat_predikat" status="disetujui" :label="pasporKartu.kandidat_predikat"></app-badge>
+            <span class="text-[10px] text-slate-400 block font-semibold mt-1">streak {{ pasporKartu.streak_hari }} hari</span>
+          </div>
+        </div>
+        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+          <div class="h-full rounded-full transition-all duration-500"
+               :class="pasporKartu.capaian_bulan_pct >= 100 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-amber-500 to-orange-400'"
+               :style="{ width: Math.min(100, Number(pasporKartu.capaian_bulan_pct) || 0) + '%' }"></div>
+        </div>
+      </template>
+      <div v-else class="my-3 text-xs text-slate-400 py-6 text-center">
+        <i class="fa-solid fa-gauge-high mr-1"></i> Belum ada metrik pada periode ini.
+      </div>
+      <p v-if="!pasporTautanServer" class="mt-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+        <i class="fa-solid fa-circle-info mt-0.5"></i>
+        <span>Akun SSO belum membawa pegawai_id dari platform, sehingga metrik bulanan
+        (speedometer) belum terhitung di server — antre perbaikan backend v2.3.0.
+        Transkrip, SKP &amp; RHK di bawah tetap tersaring benar via pencocokan email SIMPEG.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Admin tanpa tautan pegawai: jujur & aman (v1.1b) -->
+  <div v-if="pasporTanpaTautan"
+       class="p-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-start gap-2">
+    <i class="fa-solid fa-user-slash mt-0.5"></i>
+    <span>Akun admin ini tidak tertaut ke baris pegawai di SIMPEG (email akun tidak
+    ditemukan di sheet PEGAWAI), sehingga paspor pribadi tidak dapat disusun.
+    Tabel di bawah sengaja dikosongkan agar tidak menampilkan data seluruh pegawai.
+    Solusi: tautkan email akun ini ke baris PEGAWAI di SIMPEG, atau masuk memakai
+    akun pegawai untuk melihat paspor pribadinya.</span>
+  </div>
+
+  <!-- ================= BARIS 2: SUB-TAB ================= -->
+  <div class="card overflow-hidden">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+      <button v-for="tab in [
+          { id: 'transkrip', label: 'Transkrip Realisasi', ikon: 'fa-clipboard-check', jumlah: pasporRealisasi.length },
+          { id: 'skp', label: 'SKP Bulanan', ikon: 'fa-file-invoice', jumlah: pasporRekap.length },
+          { id: 'rhk', label: 'RHK Aktif', ikon: 'fa-crosshairs', jumlah: pasporRhkAktif.length },
+          { id: 'kontak', label: 'Kontak & Identitas', ikon: 'fa-address-card', jumlah: '' }
+        ]" :key="tab.id" @click="profilTab = tab.id"
+        class="px-4 py-3 rounded-2xl border text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2"
+        :class="profilTab === tab.id
+          ? 'bg-emerald-600 border-emerald-600 text-white shadow'
+          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'">
+        <i class="fa-solid" :class="tab.ikon"></i>{{ tab.label }}
+        <span v-if="tab.jumlah !== ''" class="px-2 py-0.5 rounded-full text-[10px]"
+              :class="profilTab === tab.id ? 'bg-white/20' : 'bg-slate-100 border border-slate-200 dark:bg-slate-800 dark:border-slate-700'">{{ tab.jumlah }}</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: Transkrip Realisasi -->
+    <div v-if="profilTab === 'transkrip'" class="p-4">
+      <app-skeleton v-if="pasporLoading && !pasporRealisasi.length" type="table"></app-skeleton>
+      <div v-else-if="pasporRealisasi.length" class="overflow-x-auto">
+        <app-crud-table :items="pasporRealisasi" :page="1" :total-pages="1"
+                  :total-data="pasporRealisasi.length"
+                  empty-text="Belum ada realisasi."
+                  :columns="[
+                    { label: 'Tanggal', thClass: 'min-w-[110px]' },
+                    { label: 'Uraian Hasil', thClass: 'min-w-[240px]' },
+                    { label: 'RHK', thClass: 'min-w-[200px]' },
+                    { label: 'Jenis', thClass: 'min-w-[130px]' },
+                    { label: 'Volume', thClass: 'min-w-[90px]' },
+                    { label: 'Verifikasi', thClass: 'min-w-[120px]' }
+                  ]">
+          <template #row="{ row }">
+            <td class="py-3 px-4 font-bold whitespace-nowrap text-slate-700 dark:text-slate-300">{{ formatDateDisplay(row.tanggal) }}</td>
+            <td class="py-3 px-4 max-w-64 font-bold leading-snug text-slate-800 dark:text-slate-100">{{ row.deskripsi }}</td>
+            <td class="py-3 px-4">
+              <app-badge v-if="row.rhk_id" size="sm" status="info" :label="namaRhk_(row.rhk_id)"></app-badge>
+              <app-badge v-else size="sm" label="pra-RHK"></app-badge>
+            </td>
+            <td class="py-3 px-4 whitespace-nowrap text-slate-700 dark:text-slate-300">{{ namaJenisTugas_(row.jenis_tugas_id) }}</td>
+            <td class="py-3 px-4 whitespace-nowrap font-bold text-slate-700 dark:text-slate-300">
+              <template v-if="row.volume">{{ row.volume }} {{ namaSatuan_(row.satuan_id) }}</template>
+              <span v-else class="text-slate-300 dark:text-slate-600">—</span>
+            </td>
+            <td class="py-3 px-4">
+              <app-badge size="sm"
+                         :status="badgeVerif_(row.status_verifikasi).status"
+                         :label="badgeVerif_(row.status_verifikasi).label"></app-badge>
+            </td>
+          </template>
+        </app-crud-table>
+      </div>
+      <app-empty-state v-else
+                       icon="fa-solid fa-clipboard-check"
+                       title="Belum Ada Realisasi Tercatat"
+                       subtitle="Laporan harian yang Anda isi akan tampil di sini sebagai transkrip kinerja."
+                       action-label="Isi Realisasi Sekarang"
+                       @action="navigateTo('realisasi')"></app-empty-state>
+    </div>
+
+    <!-- TAB 2: SKP Bulanan -->
+    <div v-if="profilTab === 'skp'" class="p-4">
+      <app-skeleton v-if="pasporLoading && !pasporRekap.length" type="table"></app-skeleton>
+      <div v-else-if="pasporRekap.length" class="overflow-x-auto">
+        <app-crud-table :items="pasporRekap" :page="1" :total-pages="1"
+                  :total-data="pasporRekap.length"
+                  empty-text="Belum ada rekap."
+                  :columns="[
+                    { label: 'Periode', thClass: 'min-w-[100px]' },
+                    { label: 'Rencana', thClass: 'text-center min-w-[80px]' },
+                    { label: 'Realisasi', thClass: 'text-center min-w-[80px]' },
+                    { label: 'Diverifikasi', thClass: 'text-center min-w-[90px]' },
+                    { label: 'Revisi', thClass: 'text-center min-w-[80px]' },
+                    { label: 'Capaian', thClass: 'min-w-[150px]' },
+                    { label: 'Predikat', thClass: 'min-w-[110px]' },
+                    { label: 'Status', thClass: 'min-w-[110px]' }
+                  ]">
+          <template #row="{ row }">
+            <td class="py-3 px-4 font-black text-slate-700 dark:text-slate-300">{{ row.periode }}</td>
+            <td class="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{{ row.total_rencana }}</td>
+            <td class="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{{ row.total_realisasi }}</td>
+            <td class="py-3 px-4 text-center font-bold text-emerald-500">{{ row.total_diverifikasi }}</td>
+            <td class="py-3 px-4 text-center" :class="row.total_revisi > 0 ? 'text-rose-500 font-bold' : 'text-slate-700 dark:text-slate-300'">{{ row.total_revisi }}</td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2">
+                <div class="mini-progress w-20">
+                  <div class="bg-emerald-500" :style="{ width: Math.min(100, Number(row.capaian_pct) || 0) + '%' }"></div>
+                </div>
+                <span class="font-black text-slate-700 dark:text-slate-300">{{ row.capaian_pct }}%</span>
+              </div>
+            </td>
+            <td class="py-3 px-4"><app-badge size="sm" status="disetujui" :label="row.kandidat_predikat"></app-badge></td>
+            <td class="py-3 px-4">
+              <app-badge size="sm"
+                         :status="row.status_rekap === 'final' ? 'aktif' : 'menunggu'"
+                         :label="row.status_rekap || 'draf'"></app-badge>
+            </td>
+          </template>
+        </app-crud-table>
+      </div>
+      <app-empty-state v-else
+                       icon="fa-solid fa-file-invoice"
+                       title="Belum Ada SKP Bulanan"
+                       subtitle="Rekap bulanan Anda akan muncul di sini setelah admin men-generate laporan periode berjalan."></app-empty-state>
+    </div>
+
+    <!-- TAB 3: RHK Aktif -->
+    <div v-if="profilTab === 'rhk'" class="p-4">
+      <app-skeleton v-if="pasporLoading && !pasporRhkAktif.length" type="table"></app-skeleton>
+      <div v-else-if="pasporRhkAktif.length" class="overflow-x-auto">
+        <app-crud-table :items="pasporRhkAktif" :page="1" :total-pages="1"
+                  :total-data="pasporRhkAktif.length"
+                  empty-text="Belum ada RHK aktif."
+                  :columns="[
+                    { label: 'Nama RHK (hasil)', thClass: 'min-w-[260px]' },
+                    { label: 'Indikator', thClass: 'min-w-[200px]' },
+                    { label: 'Target', thClass: 'min-w-[120px]' },
+                    { label: 'Jenis', thClass: 'min-w-[110px]' }
+                  ]">
+          <template #row="{ row }">
+            <td class="py-3 px-4 max-w-72 font-bold leading-snug text-slate-800 dark:text-slate-100">{{ row.nama_rhk }}</td>
+            <td class="py-3 px-4 max-w-56 text-slate-400">{{ row.indikator || '—' }}</td>
+            <td class="py-3 px-4 whitespace-nowrap font-black text-slate-700 dark:text-slate-300">{{ row.target_tahunan }} {{ namaSatuan_(row.satuan_id) }}</td>
+            <td class="py-3 px-4">
+              <app-badge size="sm" :status="row.jenis_rhk === 'utama' ? 'aktif' : 'menunggu'"
+                         :label="row.jenis_rhk === 'utama' ? 'Utama' : 'Tambahan'"></app-badge>
+            </td>
+          </template>
+        </app-crud-table>
+      </div>
+      <app-empty-state v-else
+                       icon="fa-solid fa-crosshairs"
+                       title="Belum Ada RHK Aktif"
+                       subtitle="RHK/SKP tahunan Anda disusun oleh admin. Hubungi admin bila seharusnya Anda memiliki RHK tahun ini."></app-empty-state>
+    </div>
+
+    <!-- TAB 4: Kontak & Identitas (modul kit, tetap ada) -->
+    <div v-if="profilTab === 'kontak'" class="p-4">
+      <app-profile></app-profile>
+    </div>
+  </div>
+</section>
