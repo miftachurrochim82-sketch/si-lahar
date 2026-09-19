@@ -1,0 +1,207 @@
+<script>
+// ============================================================
+// SILAHAR - J_Actions.html (G14/G15, 2026-09-18)
+// Aksi user: CRUD laporan harian, verifikasi, filter, profil, konfigurasi.
+// G15: goToPlatform/navigateTo/toggleSidebar/toggleDarkMode/logout DIHAPUS —
+// AppCore yang menyediakan (logika per-halaman pindah ke hook onNavigate di J_App).
+// ============================================================
+window.SilaharActions = {
+  methods: {
+
+    // F3: admin boleh semua; non-admin hanya baris miliknya sendiri
+    canEditLaporan(item) {
+      if (this.isAdmin) return true;
+      const mine = this.currentUser && this.currentUser.pegawai_id;
+      return !!mine && !!item && String(item.pegawai_id) === String(mine);
+    },
+
+    openLaporanForm(item = null) {
+      if (item) {
+        let tglFormatted = item.tanggal || '';
+        if (tglFormatted.includes('T')) {
+          tglFormatted = tglFormatted.slice(0, 10);
+        }
+        this.laporanForm = { ...item, tanggal: tglFormatted };
+      } else {
+        this.laporanForm = {
+          id: '',
+          pegawai_id: (this.currentUser && this.currentUser.pegawai_id) || '',
+          tanggal: this.todayIso_(),
+          waktu_mulai: '',
+          waktu_selesai: '',
+          jenis_kegiatan: 'rutin',
+          deskripsi: '',
+          hasil: '',
+          kendala: '',
+          tindak_lanjut: '',
+          file_url: ''
+        };
+      }
+      this.showLaporanForm = true;
+    },
+
+    async saveLaporan() {
+      this.laporanSaving = true;
+      try {
+        // F4: handler khusus (proteksi pemilik + kunci verifikasi di server)
+        const res = await this.callServer('save_laporan', { record: this.laporanForm });
+        if (res.success) {
+          this.showLaporanForm = false;
+          await this.loadLaporan(this.laporanPage);
+          await this.loadDashboard();
+          this.showToast('Laporan harian berhasil disimpan');
+        } else {
+          this.showToast(res.error || 'Gagal menyimpan laporan', 'error');
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      } finally {
+        this.laporanSaving = false;
+      }
+    },
+
+    confirmDeleteLaporan(item) {
+      this.deleteLaporan(item);
+    },
+
+    async deleteLaporan(item) {
+      if (!confirm(`Hapus laporan kegiatan "${item.deskripsi || item.id}"?`)) return;
+      try {
+        // F4: handler khusus (proteksi pemilik di server)
+        const res = await this.callServer('delete_laporan', { id: item.id });
+        if (res.success) {
+          await this.loadLaporan(this.laporanPage);
+          await this.loadDashboard();
+          this.showToast('Laporan berhasil dihapus');
+        } else {
+          this.showToast(res.error || 'Gagal menghapus laporan', 'error');
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      }
+    },
+
+    // F5: verifikasi khusus admin (prompt catatan, revisi wajib isi)
+    async verifikasiLaporan(item, status) {
+      const catatan = prompt(status === 'disetujui' ? 'Catatan persetujuan (opsional):' : 'Catatan revisi (wajib diisi):', '');
+      if (catatan === null) return;
+      if (status === 'revisi' && !String(catatan).trim()) { this.showToast('Catatan revisi wajib diisi', 'error'); return; }
+      try {
+        const res = await this.callServer('verifikasi_laporan', { id: item.id, status: status, catatan_atasan: catatan || '' });
+        if (res.success) {
+          await this.loadLaporan(this.laporanPage);
+          this.showToast('Laporan ' + status);
+        } else {
+          this.showToast(res.error || 'Gagal verifikasi', 'error');
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      }
+    },
+
+    resetLaporanFilter() {
+      this.laporanSearch = '';
+      this.loadLaporan(1);
+    },
+
+    resetRiwayatFilter() {
+      this.riwayatFilterTanggal = '';
+      this.riwayatFilterPegawai = '';
+      this.riwayatFilterJenis = '';
+      this.riwayatSearch = '';
+      this.loadRiwayat(1);
+    },
+
+    resetPegawaiFilter() {
+      this.pegawaiSearch = '';
+      this.pegawaiRefPage = 1;
+    },
+
+    resetJabatanFilter() {
+      this.jabatanSearch = '';
+      this.jabatanRefPage = 1;
+    },
+
+    resetUnitFilter() {
+      this.unitSearch = '';
+      this.unitRefPage = 1;
+    },
+
+    toggleEditProfil() {
+      this.isEditingProfil = !this.isEditingProfil;
+    },
+
+    async saveProfil() {
+      this.profilSaving = true;
+      try {
+        const res = await this.callServer('save_my_profile', this.editProfilForm);
+        if (res.success) {
+          this.isEditingProfil = false;
+          await this.loadProfil();
+          this.showToast('Profil diperbarui');
+        } else {
+          this.showToast(res.error || 'Profil berasal dari SIMPEG', 'info');
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      } finally {
+        this.profilSaving = false;
+      }
+    },
+
+    openAddConfig() {
+      this.selectedConfig = null;
+      this.editConfigKey = '';
+      this.editConfigValue = '';
+      this.editConfigKeterangan = '';
+      this.showEditConfig = true;
+    },
+
+    openEditConfig(config) {
+      this.selectedConfig = config;
+      this.editConfigKey = config.key;
+      this.editConfigValue = config.value || '';
+      this.editConfigKeterangan = config.keterangan || '';
+      this.showEditConfig = true;
+    },
+
+    async saveConfig() {
+      this.configSaving = true;
+      try {
+        const res = await this.callServer('save_config_item', {
+          key: this.editConfigKey,
+          value: this.editConfigValue,
+          keterangan: this.editConfigKeterangan
+        });
+        if (res.success) {
+          this.showEditConfig = false;
+          await this.loadConfig();
+          this.showToast('Konfigurasi berhasil disimpan');
+        } else {
+          this.showToast(res.error || 'Gagal menyimpan konfigurasi', 'error');
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      } finally {
+        this.configSaving = false;
+      }
+    },
+
+    async deleteConfig(config) {
+      if (!confirm(`Hapus permanen konfigurasi "${config.key}"?`)) return;
+      try {
+        const res = await this.callServer('delete', { entity: 'KONFIGURASI', id: config.id });
+        if (res.success) {
+          await this.loadConfig();
+          this.showToast('Konfigurasi dihapus');
+        } else {
+          this.showToast(res.error || 'Gagal menghapus konfigurasi', 'error');
+        }
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      }
+    }
+
+  }
+};
+</script>
