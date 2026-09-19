@@ -1,0 +1,393 @@
+<!-- ============================================================
+     V_Modals.html — SELURUH MODAL FORM SILAHAR (G18c-2 STRUCTURE
+     ALIGNMENT, 2026-09-18). Pola si-kompetensi v6: modal form
+     dipusatkan di satu include agar mudah diaudit & pola antar
+     app seragam. Semua modal = komponen kit <app-modal>; state
+     form hidup di root vm (mixin J_Kinerja), jadi aman dirender
+     di luar view manapun. Urutan: rencana kanban, rencana
+     kalender, realisasi, detail SKP, RHK, jenis tugas, satuan.
+     ============================================================ -->
+
+  <!-- ================= MODAL FORM RENCANA (kit app-modal) ================= -->
+  <app-modal :show="showRencanaForm"
+             :title="rencanaForm.id ? 'Ubah Rencana' : 'Rencana Baru'"
+             subtitle="Rencana = kalimat HASIL, bukan aktivitas (rujukan BKN)"
+             icon="fa-solid fa-calendar-plus"
+             size="lg"
+             :loading="rencanaSaving"
+             confirm-text="Simpan Rencana"
+             cancel-text="Batal"
+             @close="showRencanaForm = false"
+             @confirm="saveRencana()">
+    <div class="space-y-3">
+      <div>
+        <label class="form-label">Tanggal Rencana *</label>
+        <input type="date" v-model="rencanaForm.tanggal_rencana" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">RHK (hasil kerja)</label>
+        <select v-model="rencanaForm.rhk_id" class="input w-full">
+          <option value="">— Tanpa RHK —</option>
+          <option v-for="r in rhkList" :key="r.id" :value="r.id">{{ r.nama_rhk }} ({{ r.periode_tahun }})</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Jenis Tugas</label>
+        <select v-model="rencanaForm.jenis_tugas_id" class="input w-full">
+          <option value="">— Pilih jenis —</option>
+          <option v-for="j in jenisTugasList" :key="j.id" :value="j.id">{{ j.nama }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Rencana Hasil *</label>
+        <textarea v-model="rencanaForm.rencana_hasil" rows="3" placeholder="Contoh: Tersusunnya laporan patroli wilayah kota"
+                  class="input w-full resize-none"></textarea>
+      </div>
+      <div>
+        <label class="form-label">Prioritas</label>
+        <div class="flex gap-2">
+          <button v-for="p in ['biasa', 'penting', 'mendesak']" :key="p" type="button" @click="rencanaForm.prioritas = p"
+                  class="flex-1 px-3 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer capitalize"
+                  :class="rencanaForm.prioritas === p
+                    ? 'border-emerald-500 bg-emerald-500 text-white shadow'
+                    : 'border-slate-300 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'">
+            {{ p }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </app-modal>
+
+  <!-- ================= MODAL FORM RENCANA (khusus kalender, BUGFIX) ================= -->
+  <app-modal :show="showRencanaFormKal"
+             title="Rencana Baru"
+             subtitle="Rencana = kalimat HASIL, bukan aktivitas (rujukan BKN)"
+             icon="fa-solid fa-calendar-plus"
+             size="lg"
+             :loading="rencanaSaving"
+             confirm-text="Simpan Rencana"
+             cancel-text="Batal"
+             @close="showRencanaFormKal = false"
+             @confirm="saveRencana()">
+    <div class="space-y-3">
+      <div>
+        <label class="form-label">Tanggal Rencana *</label>
+        <input type="date" v-model="rencanaForm.tanggal_rencana" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">RHK (hasil kerja)</label>
+        <select v-model="rencanaForm.rhk_id" class="input w-full">
+          <option value="">— Tanpa RHK —</option>
+          <option v-for="r in rhkList" :key="r.id" :value="r.id">{{ r.nama_rhk }} ({{ r.periode_tahun }})</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Jenis Tugas</label>
+        <select v-model="rencanaForm.jenis_tugas_id" class="input w-full">
+          <option value="">— Pilih jenis —</option>
+          <option v-for="j in jenisTugasList" :key="j.id" :value="j.id">{{ j.nama }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Rencana Hasil *</label>
+        <textarea v-model="rencanaForm.rencana_hasil" rows="3" placeholder="Contoh: Tersusunnya laporan patroli wilayah kota"
+                  class="input w-full resize-none"></textarea>
+      </div>
+      <div>
+        <label class="form-label">Prioritas</label>
+        <div class="flex gap-2">
+          <button v-for="p in ['biasa', 'penting', 'mendesak']" :key="p" type="button" @click="rencanaForm.prioritas = p"
+                  class="flex-1 px-3 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer capitalize"
+                  :class="rencanaForm.prioritas === p
+                    ? 'border-emerald-500 bg-emerald-500 text-white shadow'
+                    : 'border-slate-300 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'">
+            {{ p }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </app-modal>
+
+  <!-- ================= MODAL FORM REALISASI (kit app-modal) ================= -->
+  <app-modal :show="showRealisasiForm"
+             :title="realisasiForm.id ? 'Ubah Realisasi' : 'Realisasi Baru'"
+             subtitle="Hasil kerja + volume + bukti dukung (link/foto/notulen)"
+             icon="fa-solid fa-clipboard-check"
+             size="2xl"
+             :loading="realisasiSaving"
+             confirm-text="Simpan Realisasi"
+             cancel-text="Batal"
+             @close="showRealisasiForm = false"
+             @confirm="saveRealisasi()">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="form-label">Tanggal *</label>
+        <input type="date" v-model="realisasiForm.tanggal" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Jenis Tugas *</label>
+        <select v-model="realisasiForm.jenis_tugas_id" class="input w-full">
+          <option value="">— Pilih jenis —</option>
+          <option v-for="j in jenisTugasList" :key="j.id" :value="j.id">{{ j.nama }}</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="form-label">RHK terkait</label>
+        <select v-model="realisasiForm.rhk_id" class="input w-full">
+          <option value="">— Tanpa RHK (pra-RHK) —</option>
+          <option v-for="r in rhkList" :key="r.id" :value="r.id">{{ r.nama_rhk }} ({{ r.periode_tahun }})</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="form-label">Uraian Hasil *</label>
+        <textarea v-model="realisasiForm.uraian_hasil" rows="3" placeholder="Contoh: Tersusunnya laporan patroli wilayah kota (1 dokumen)"
+                  class="input w-full resize-none"></textarea>
+      </div>
+      <div>
+        <label class="form-label">Volume *</label>
+        <input type="number" min="0" step="1" v-model="realisasiForm.volume" placeholder="mis. 1" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Satuan *</label>
+        <select v-model="realisasiForm.satuan_id" class="input w-full">
+          <option value="">— Pilih satuan —</option>
+          <option v-for="s in satuanList" :key="s.id" :value="s.id">{{ s.nama }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Jam Mulai</label>
+        <input type="time" v-model="realisasiForm.waktu_mulai" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Jam Selesai</label>
+        <input type="time" v-model="realisasiForm.waktu_selesai" class="input w-full">
+      </div>
+    </div>
+
+    <!-- Repeater bukti (FR-11) -->
+    <div class="mt-4">
+      <div class="flex items-center justify-between mb-2">
+        <label class="form-label !mb-0">
+          <i class="fa-solid fa-paperclip mr-1"></i>Bukti Dukung ({{ realisasiForm.lampiran.length }})
+        </label>
+        <button @click="addLampiranRow()" type="button"
+                class="px-3 py-1.5 rounded-lg text-[11px] font-black border border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition-all cursor-pointer">
+          <i class="fa-solid fa-plus mr-0.5"></i>Tambah Bukti
+        </button>
+      </div>
+      <div v-for="(lamp, i) in realisasiForm.lampiran" :key="i"
+           class="grid grid-cols-12 gap-2 mb-2 items-center">
+        <select v-model="lamp.jenis_bukti" class="input col-span-3 !py-1.5 !text-[11px]">
+          <option value="link">Link</option>
+          <option value="file">File</option>
+          <option value="foto">Foto</option>
+          <option value="notulen">Notulen</option>
+        </select>
+        <input type="url" v-model="lamp.url" placeholder="https://drive.google.com/…"
+               class="input col-span-5 !py-1.5 !text-[11px]">
+        <input type="text" v-model="lamp.nama_bukti" placeholder="Nama bukti"
+               class="input col-span-3 !py-1.5 !text-[11px]">
+        <button @click="removeLampiranRow(i)" type="button"
+                class="col-span-1 px-2 py-1.5 rounded-lg text-[11px] font-bold border border-rose-200 text-rose-500 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-900/30 cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p v-if="!realisasiForm.lampiran.length" class="text-[11px] text-slate-400">
+        Belum ada bukti. v1 memakai URL (Drive/foto/notulen) — upload file langsung = fase lanjut.
+      </p>
+    </div>
+  </app-modal>
+
+  <!-- ================= MODAL DETAIL PER RHK (kit app-modal) ================= -->
+  <app-modal :show="showRekapDetail && !!rekapDetail"
+             :title="'SKP Bulanan ' + (rekapDetail ? rekapDetail.periode : '')"
+             :subtitle="(isAdmin && rekapDetail) ? namaPegawai(rekapDetail.pegawai_id) : 'Capaian per RHK'"
+             icon="fa-solid fa-file-invoice"
+             size="2xl"
+             :show-confirm="false"
+             cancel-text="Tutup"
+             @close="showRekapDetail = false">
+    <template v-if="rekapDetail">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center">
+        <div class="p-3 rounded-xl border bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+          <p class="text-[10px] font-black uppercase text-slate-400">Capaian</p>
+          <p class="text-xl font-black text-emerald-500">{{ rekapDetail.capaian_pct }}%</p>
+        </div>
+        <div class="p-3 rounded-xl border bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+          <p class="text-[10px] font-black uppercase text-slate-400">Predikat</p>
+          <p class="text-sm font-black mt-1 text-slate-800 dark:text-white">{{ rekapDetail.kandidat_predikat }}</p>
+        </div>
+        <div class="p-3 rounded-xl border bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+          <p class="text-[10px] font-black uppercase text-slate-400">Terverifikasi</p>
+          <p class="text-xl font-black text-slate-800 dark:text-white">{{ rekapDetail.total_diverifikasi }}/{{ rekapDetail.total_realisasi }}</p>
+        </div>
+        <div class="p-3 rounded-xl border bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+          <p class="text-[10px] font-black uppercase text-slate-400">Revisi</p>
+          <p class="text-xl font-black" :class="rekapDetail.total_revisi > 0 ? 'text-rose-500' : 'text-slate-800 dark:text-white'">{{ rekapDetail.total_revisi }}</p>
+        </div>
+      </div>
+
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-700">
+            <th class="py-2 pr-3">RHK</th>
+            <th class="py-2 pr-3 text-center">Entri</th>
+            <th class="py-2 pr-3 text-right">Volume Bulan Ini</th>
+            <th class="py-2 text-right">Target Tahunan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in rekapDetail.capaian_rhk" :key="c.rhk_id" class="border-b last:border-0 border-slate-100 dark:border-slate-800/60">
+            <td class="py-2 pr-3 font-bold text-slate-700 dark:text-slate-200">
+              {{ c.nama_rhk }}
+              <app-badge v-if="c.rhk_id === '(pra-RHK)'" size="sm" label="legacy"></app-badge>
+            </td>
+            <td class="py-2 pr-3 text-center text-slate-700 dark:text-slate-300">{{ c.jumlah }}</td>
+            <td class="py-2 pr-3 text-right font-black text-slate-700 dark:text-slate-300">{{ c.volume }} {{ namaSatuan_(c.satuan_id) }}</td>
+            <td class="py-2 text-right text-slate-700 dark:text-slate-300">{{ c.target_tahunan || '—' }}</td>
+          </tr>
+          <tr v-if="!rekapDetail.capaian_rhk.length">
+            <td colspan="4" class="py-6 text-center text-slate-400">Tidak ada realisasi pada periode ini.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="text-[10px] text-slate-400 mt-3">
+        <i class="fa-solid fa-circle-info mr-1"></i>Predikat v1 = kuantitas saja (terverifikasi ÷ rencana). Perilaku BerAKHLAK = fase lanjut.
+        Di-generate {{ rekapDetail.generated_at ? String(rekapDetail.generated_at).slice(0, 10) : '' }}.
+      </p>
+    </template>
+  </app-modal>
+
+  <!-- ================= MODAL RHK (kit app-modal + app-pegawai-picker) ================= -->
+  <app-modal :show="showRhkForm"
+             :title="rhkForm.id ? 'Ubah RHK' : 'RHK Baru'"
+             subtitle="RHK = kalimat HASIL tahunan (rujukan BKN)"
+             icon="fa-solid fa-crosshairs"
+             size="xl"
+             :loading="masterSaving"
+             confirm-text="Simpan RHK"
+             cancel-text="Batal"
+             @close="showRhkForm = false"
+             @confirm="saveRhk()">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <app-pegawai-picker v-model="rhkForm.pegawai_id" label="Pegawai *"></app-pegawai-picker>
+      </div>
+      <div>
+        <label class="form-label">Periode Tahun *</label>
+        <input type="number" min="2000" max="2100" v-model="rhkForm.periode_tahun" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Jenis RHK *</label>
+        <select v-model="rhkForm.jenis_rhk" class="input w-full">
+          <option value="utama">Utama (SKP)</option>
+          <option value="tambahan">Tugas Tambahan</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Klasifikasi</label>
+        <select v-model="rhkForm.klasifikasi" class="input w-full">
+          <option value="individu">Individu</option>
+          <option value="organisasi">Organisasi (fase lanjut)</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="form-label">Nama RHK * (kalimat HASIL, bukan aktivitas)</label>
+        <textarea v-model="rhkForm.nama_rhk" rows="2" placeholder="Contoh: Tersedianya laporan patroli wilayah yang akurat dan tepat waktu"
+                  class="input w-full resize-none"></textarea>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="form-label">Indikator terukur</label>
+        <input type="text" v-model="rhkForm.indikator" placeholder="Contoh: jumlah dokumen laporan per bulan" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Satuan *</label>
+        <select v-model="rhkForm.satuan_id" class="input w-full">
+          <option value="">— Pilih satuan —</option>
+          <option v-for="s in satuanList" :key="s.id" :value="s.id">{{ s.nama }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Target Tahunan * (&gt;0)</label>
+        <input type="number" min="1" v-model="rhkForm.target_tahunan" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">RHK Atasan (opsional)</label>
+        <input type="text" v-model="rhkForm.rhk_atasan_id" placeholder="id RHK atasan" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Status</label>
+        <select v-model="rhkForm.status" class="input w-full">
+          <option value="aktif">Aktif</option>
+          <option value="nonaktif">Nonaktif</option>
+        </select>
+      </div>
+    </div>
+  </app-modal>
+
+  <!-- ================= MODAL JENIS TUGAS (kit app-modal) ================= -->
+  <app-modal :show="showJenisForm"
+             :title="jenisForm.id ? 'Ubah Jenis Tugas' : 'Jenis Tugas Baru'"
+             icon="fa-solid fa-tags"
+             size="md"
+             :loading="masterSaving"
+             confirm-text="Simpan"
+             cancel-text="Batal"
+             @close="showJenisForm = false"
+             @confirm="saveJenis()">
+    <div class="space-y-3">
+      <div>
+        <label class="form-label">Kode * (unik, huruf kecil)</label>
+        <input type="text" v-model="jenisForm.kode" :disabled="!!jenisForm.id" placeholder="mis. utama" class="input w-full disabled:opacity-50">
+      </div>
+      <div>
+        <label class="form-label">Nama *</label>
+        <input type="text" v-model="jenisForm.nama" placeholder="mis. Utama (SKP)" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Keterangan</label>
+        <input type="text" v-model="jenisForm.keterangan" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Status</label>
+        <select v-model="jenisForm.status" class="input w-full">
+          <option value="aktif">Aktif</option>
+          <option value="nonaktif">Nonaktif</option>
+        </select>
+      </div>
+    </div>
+  </app-modal>
+
+  <!-- ================= MODAL SATUAN (kit app-modal) ================= -->
+  <app-modal :show="showSatuanForm"
+             :title="satuanForm.id ? 'Ubah Satuan' : 'Satuan Baru'"
+             icon="fa-solid fa-ruler"
+             size="md"
+             :loading="masterSaving"
+             confirm-text="Simpan"
+             cancel-text="Batal"
+             @close="showSatuanForm = false"
+             @confirm="saveSatuan()">
+    <div class="space-y-3">
+      <div>
+        <label class="form-label">Kode * (unik, huruf kecil)</label>
+        <input type="text" v-model="satuanForm.kode" :disabled="!!satuanForm.id" placeholder="mis. dokumen" class="input w-full disabled:opacity-50">
+      </div>
+      <div>
+        <label class="form-label">Nama *</label>
+        <input type="text" v-model="satuanForm.nama" placeholder="mis. Dokumen" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Keterangan</label>
+        <input type="text" v-model="satuanForm.keterangan" class="input w-full">
+      </div>
+      <div>
+        <label class="form-label">Status</label>
+        <select v-model="satuanForm.status" class="input w-full">
+          <option value="aktif">Aktif</option>
+          <option value="nonaktif">Nonaktif</option>
+        </select>
+      </div>
+    </div>
+  </app-modal>

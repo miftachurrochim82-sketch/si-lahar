@@ -1,0 +1,662 @@
+<!-- ============================================================
+     V_MasterData.html — Halaman Master Data (SILAHAR Modern UI/UX)
+     PATCH F7 (v2-ready):
+     1. Dropdown pegawai dikunci utk non-admin (admin bebas pilih)
+     2. Input Waktu Mulai + Waktu Selesai (auto-durasi di server)
+     3. Opsi jenis lengkap: +lapangan, +administrasi
+     4. Tombol Edit/Hapus hanya pemilik/admin (v-if canEditLaporan)
+     5. Kolom Status verifikasi + tombol Setujui/Revisi (admin)
+     6. Badge count = total sebenarnya (laporanTotalData)
+     7. Search debounce 400ms
+     ============================================================ -->
+<div v-if="currentPage === 'master_data'" class="space-y-5 animate-fade-in select-none">
+
+  <!-- ================= HEADER HALAMAN ================= -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight flex items-center gap-2" :class="isDarkMode ? 'text-white' : 'text-slate-800'">
+        <i class="fa-solid fa-database text-indigo-600 dark:text-indigo-400"></i> Master Data Sistem
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        Kelola entri laporan harian pegawai dan lihat referensi terintegrasi SIMPEG.
+      </p>
+    </div>
+  </div>
+
+  <!-- ================= TAB NAVIGASI MASTER DATA ================= -->
+  <div :class="[
+    'p-1.5 rounded-2xl flex overflow-x-auto no-scrollbar gap-1.5 border shadow-inner transition-all duration-300',
+    isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-slate-100/80 border-slate-200/80'
+  ]">
+    <button @click="activeMasterTab = 'laporan'"
+            :class="[
+              'flex-1 min-w-[140px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer',
+              activeMasterTab === 'laporan'
+                ? (isDarkMode ? 'bg-slate-800 text-indigo-400 shadow-md border border-slate-700' : 'bg-white text-indigo-700 shadow-sm border border-slate-200')
+                : (isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+            ]">
+      <i class="fa-solid fa-file-pen text-sm"></i>
+      <span>Laporan Harian</span>
+      <span class="px-2 py-0.5 text-[10px] rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-extrabold ml-1">
+        {{ laporanTotalData || (laporanList || []).length }}
+      </span>
+    </button>
+
+    <button @click="activeMasterTab = 'pegawai'"
+            :class="[
+              'flex-1 min-w-[130px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer',
+              activeMasterTab === 'pegawai'
+                ? (isDarkMode ? 'bg-slate-800 text-indigo-400 shadow-md border border-slate-700' : 'bg-white text-indigo-700 shadow-sm border border-slate-200')
+                : (isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+            ]">
+      <i class="fa-solid fa-users text-sm"></i>
+      <span>Pegawai</span>
+      <span class="px-2 py-0.5 text-[10px] rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold ml-1">
+        {{ (pegawaiList || []).length }}
+      </span>
+    </button>
+
+    <button @click="activeMasterTab = 'jabatan'"
+            :class="[
+              'flex-1 min-w-[130px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer',
+              activeMasterTab === 'jabatan'
+                ? (isDarkMode ? 'bg-slate-800 text-indigo-400 shadow-md border border-slate-700' : 'bg-white text-indigo-700 shadow-sm border border-slate-200')
+                : (isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+            ]">
+      <i class="fa-solid fa-briefcase text-sm"></i>
+      <span>Jabatan</span>
+      <span class="px-2 py-0.5 text-[10px] rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold ml-1">
+        {{ (jabatanList || []).length }}
+      </span>
+    </button>
+
+    <button @click="activeMasterTab = 'unit'"
+            :class="[
+              'flex-1 min-w-[130px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer',
+              activeMasterTab === 'unit'
+                ? (isDarkMode ? 'bg-slate-800 text-indigo-400 shadow-md border border-slate-700' : 'bg-white text-indigo-700 shadow-sm border border-slate-200')
+                : (isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+            ]">
+      <i class="fa-solid fa-building text-sm"></i>
+      <span>Unit Kerja</span>
+      <span class="px-2 py-0.5 text-[10px] rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold ml-1">
+        {{ (unitList || []).length }}
+      </span>
+    </button>
+  </div>
+
+  <!-- ================= TAB 1: LAPORAN HARIAN (FULL CRUD) ================= -->
+  <div v-if="activeMasterTab === 'laporan'" class="space-y-4">
+
+    <!-- Filter Bar & Actions -->
+    <div :class="[
+      'p-4 rounded-2xl border shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between transition-all duration-300',
+      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+    ]">
+      <div class="flex flex-1 flex-col sm:flex-row gap-2">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input v-model="laporanSearch"
+                 @input="debouncedLoadLaporan"
+                 placeholder="Cari deskripsi, hasil, kendala..."
+                 :class="[
+                   'w-full pl-9 pr-4 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                   isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                 ]" />
+        </div>
+
+        <button @click="resetLaporanFilter"
+                class="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-rotate-right"></i> Reset
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button @click="exportLaporanExcel"
+                class="flex-1 md:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-file-excel text-sm"></i> Export Excel
+        </button>
+
+        <button @click="openLaporanForm()"
+                class="flex-1 md:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-plus text-sm"></i> Tambah Laporan
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabel Data Laporan Harian -->
+    <div :class="[
+      'rounded-2xl border shadow-sm overflow-hidden transition-all duration-300',
+      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+    ]">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr :class="[
+              'text-xs font-extrabold uppercase tracking-wider border-b',
+              isDarkMode ? 'bg-slate-800/60 border-slate-800 text-slate-400' : 'bg-slate-50/80 border-slate-200 text-slate-600'
+            ]">
+              <th class="py-3.5 px-4 w-12 text-center">No</th>
+              <th class="py-3.5 px-4 w-28">Tanggal</th>
+              <th class="py-3.5 px-4 w-48">Pegawai</th>
+              <th class="py-3.5 px-4 w-32">Jenis Kegiatan</th>
+              <th class="py-3.5 px-4">Deskripsi & Hasil</th>
+              <th class="py-3.5 px-4 w-48">Kendala & TL</th>
+              <th class="py-3.5 px-4 w-24 text-center">Lampiran</th>
+              <th class="py-3.5 px-4 w-28 text-center">Status</th>
+              <th class="py-3.5 px-4 w-32 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody :class="[
+            'divide-y text-xs',
+            isDarkMode ? 'divide-slate-800 text-slate-300' : 'divide-slate-100 text-slate-700'
+          ]">
+
+            <!-- Skeleton Loading -->
+            <tr v-if="laporanLoading" v-for="i in 3" :key="'skel-master-'+i" class="animate-pulse">
+              <td class="p-4 text-center"><div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-6 mx-auto"></div></td>
+              <td class="p-4"><div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-20"></div></td>
+              <td class="p-4"><div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-32"></div></td>
+              <td class="p-4"><div class="h-6 bg-slate-200 dark:bg-slate-800 rounded-full w-20"></div></td>
+              <td class="p-4"><div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-48 mb-2"></div><div class="h-3 bg-slate-100 dark:bg-slate-800/60 rounded w-32"></div></td>
+              <td class="p-4"><div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-32"></div></td>
+              <td class="p-4 text-center"><div class="h-6 bg-slate-200 dark:bg-slate-800 rounded w-12 mx-auto"></div></td>
+              <td class="p-4 text-center"><div class="h-6 bg-slate-200 dark:bg-slate-800 rounded-full w-20 mx-auto"></div></td>
+              <td class="p-4 text-center"><div class="h-8 bg-slate-200 dark:bg-slate-800 rounded w-16 mx-auto"></div></td>
+            </tr>
+
+            <!-- Data Rows -->
+            <tr v-else v-for="(item, index) in laporanList" :key="'lap-'+item.id"
+                class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+
+              <td class="py-3.5 px-4 text-center font-bold text-slate-400">
+                {{ (laporanPage - 1) * pageSize + index + 1 }}
+              </td>
+
+              <td class="py-3.5 px-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
+                <i class="fa-regular fa-calendar text-slate-400 mr-1.5"></i>
+                {{ formatDateDisplay(item.tanggal) }}
+              </td>
+
+              <td class="py-3.5 px-4">
+                <div class="font-bold text-slate-900 dark:text-white">{{ namaPegawai(item.pegawai_id) }}</div>
+                <div class="text-[10px] text-slate-400 font-mono" v-if="item.pegawai_id">ID: {{ item.pegawai_id }}</div>
+              </td>
+
+              <td class="py-3.5 px-4 whitespace-nowrap">
+                <span :class="{
+                  'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800': String(item.jenis_kegiatan).toLowerCase() === 'rutin',
+                  'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800': String(item.jenis_kegiatan).toLowerCase() === 'insidental',
+                  'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800': String(item.jenis_kegiatan).toLowerCase() === 'khusus',
+                  'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800': String(item.jenis_kegiatan).toLowerCase() === 'lapangan',
+                  'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800': String(item.jenis_kegiatan).toLowerCase() === 'administrasi',
+                  'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700': !item.jenis_kegiatan
+                }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border">
+                  {{ item.jenis_kegiatan || 'Umum' }}
+                </span>
+              </td>
+
+              <td class="py-3.5 px-4">
+                <div class="font-semibold text-slate-800 dark:text-slate-200 line-clamp-2">{{ item.deskripsi || '-' }}</div>
+                <div v-if="item.hasil" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 flex items-start gap-1">
+                  <i class="fa-solid fa-circle-check text-[9px] mt-0.5"></i>
+                  <span class="line-clamp-1">Hasil: {{ item.hasil }}</span>
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4 text-[11px]">
+                <div v-if="item.kendala" class="text-rose-600 dark:text-rose-400 font-bold line-clamp-1" title="Kendala">
+                  <i class="fa-solid fa-triangle-exclamation mr-1"></i>{{ item.kendala }}
+                </div>
+                <div v-if="item.tindak_lanjut" class="text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5" title="Tindak Lanjut">
+                  <i class="fa-solid fa-arrow-right mr-1 text-slate-400"></i>{{ item.tindak_lanjut }}
+                </div>
+                <div v-if="!item.kendala && !item.tindak_lanjut" class="text-slate-400 italic">-</div>
+              </td>
+
+              <td class="py-3.5 px-4 text-center">
+                <a v-if="item.file_url" :href="item.file_url" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-600 dark:text-indigo-300 rounded-lg text-[10px] font-bold transition-all">
+                  <i class="fa-solid fa-paperclip"></i> File
+                </a>
+                <span v-else class="text-slate-300 dark:text-slate-600">-</span>
+              </td>
+
+              <!-- F7.5: Kolom Status Verifikasi -->
+              <td class="py-3.5 px-4 whitespace-nowrap text-center">
+                <span :class="{
+                  'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800': item.status_verifikasi === 'disetujui',
+                  'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800': item.status_verifikasi === 'revisi',
+                  'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700': !item.status_verifikasi || item.status_verifikasi === 'menunggu'
+                }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border">
+                  {{ item.status_verifikasi || 'menunggu' }}
+                </span>
+                <div v-if="item.catatan_atasan" class="text-[10px] text-slate-400 italic mt-1 line-clamp-1" :title="item.catatan_atasan">
+                  {{ item.catatan_atasan }}
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                <div class="flex items-center justify-center gap-1">
+                  <button v-if="canEditLaporan(item)" @click="openLaporanForm(item)" title="Edit Laporan" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-all cursor-pointer">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button v-if="canEditLaporan(item)" @click="confirmDeleteLaporan(item)" title="Hapus Laporan" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all cursor-pointer">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                  <button v-if="isAdmin" @click="verifikasiLaporan(item,'disetujui')" title="Setujui Laporan" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-all cursor-pointer">
+                    <i class="fa-solid fa-circle-check"></i>
+                  </button>
+                  <button v-if="isAdmin" @click="verifikasiLaporan(item,'revisi')" title="Minta Revisi" class="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-all cursor-pointer">
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+                </div>
+              </td>
+
+            </tr>
+
+            <!-- Empty State -->
+            <tr v-if="!laporanList.length && !laporanLoading">
+              <td colspan="9" class="py-12 text-center">
+                <div class="max-w-xs mx-auto text-center">
+                  <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl">
+                    <i class="fa-solid fa-inbox"></i>
+                  </div>
+                  <h4 class="text-sm font-bold text-slate-700 dark:text-slate-300">Belum ada Laporan Harian</h4>
+                  <p class="text-xs text-slate-400 mt-1">Gunakan tombol "Tambah Laporan" di atas untuk membuat entri baru.</p>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div :class="[
+        'px-4 py-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500',
+        isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50/80 border-slate-200'
+      ]">
+        <span>Menampilkan halaman <b>{{ laporanPage }}</b> dari <b>{{ laporanTotalPages || 1 }}</b> (Total {{ laporanTotalData || laporanList.length }} data)</span>
+
+        <div class="flex items-center gap-1.5">
+          <button @click="loadLaporan(laporanPage - 1)"
+                  :disabled="laporanPage <= 1"
+                  :class="[
+                    'px-3 py-1.5 border rounded-xl font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1',
+                    isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ]">
+            <i class="fa-solid fa-chevron-left"></i> Prev
+          </button>
+
+          <span class="px-3 py-1 font-black text-slate-800 dark:text-slate-200">{{ laporanPage }}</span>
+
+          <button @click="loadLaporan(laporanPage + 1)"
+                  :disabled="laporanPage >= laporanTotalPages"
+                  :class="[
+                    'px-3 py-1.5 border rounded-xl font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1',
+                    isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ]">
+            Next <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= TAB 2: PEGAWAI (REFERENSI SIMPEG) ================= -->
+  <div v-if="activeMasterTab === 'pegawai'" class="space-y-4">
+    <div :class="[
+      'p-4 rounded-2xl border shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between transition-all duration-300',
+      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+    ]">
+      <div class="flex flex-1 flex-col sm:flex-row gap-2">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input v-model="pegawaiSearch"
+                 @input="loadPegawai(1)"
+                 placeholder="Cari NIP, Nama, Email..."
+                 :class="[
+                   'w-full pl-9 pr-4 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                   isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                 ]" />
+        </div>
+
+        <button @click="resetPegawaiFilter" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-rotate-right"></i> Reset
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button @click="exportPegawaiExcel" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-file-excel"></i> Excel
+        </button>
+        <button @click="exportPegawaiPDF" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-file-pdf"></i> PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- G13 Tahap B: tabel referensi → komponen kit <app-crud-table> (frontend-cdn v2.7.5).
+         Tag penutup eksplisit + props kebab-case = aturan wajib in-DOM template. -->
+    <app-crud-table
+      :items="paginatedPegawaiReferensi"
+      :columns="[{ key: 'no', label: 'No', thClass: 'w-12 text-center' }, { key: 'nama', label: 'NIP & Nama' }, { key: 'kontak', label: 'Email / No HP' }, { key: 'unit', label: 'Unit Kerja' }, { key: 'jabatan', label: 'Jabatan' }, { key: 'status', label: 'Status', thClass: 'text-center' }]"
+      :page="pegawaiRefPage"
+      :total-pages="pegawaiRefTotalPages"
+      :total-data="filteredPegawaiReferensi.length"
+      @change-page="loadPegawai"
+      empty-text="Tidak ada data pegawai."
+      empty-icon="fa-solid fa-users">
+      <template #row="{ row: p, index: idx }">
+        <td class="py-3 px-4 text-center font-bold text-slate-400">{{ (pegawaiRefPage - 1) * pageSize + idx + 1 }}</td>
+        <td class="py-3 px-4">
+          <div class="font-bold text-slate-900 dark:text-white">{{ p.nama || '-' }}</div>
+          <div class="text-[10px] font-mono text-slate-400">NIP: {{ p.nip || '-' }}</div>
+        </td>
+        <td class="py-3 px-4">
+          <div class="text-slate-700 dark:text-slate-300"><i class="fa-regular fa-envelope mr-1 text-slate-400"></i>{{ p.email || '-' }}</div>
+          <div class="text-slate-500 dark:text-slate-400 mt-0.5"><i class="fa-solid fa-phone mr-1 text-slate-400"></i>{{ p.no_hp || '-' }}</div>
+        </td>
+        <td class="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{{ namaUnit(p.unit_id) }}</td>
+        <td class="py-3 px-4 text-slate-600 dark:text-slate-300">{{ namaJabatan(p.jabatan_id) }}</td>
+        <td class="py-3 px-4 text-center">
+          <span :class="String(p.status).toUpperCase() === 'AKTIF' ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border">
+            {{ p.status || 'AKTIF' }}
+          </span>
+        </td>
+      </template>
+    </app-crud-table>
+  </div>
+
+  <!-- ================= TAB 3: JABATAN (REFERENSI SIMPEG) ================= -->
+  <div v-if="activeMasterTab === 'jabatan'" class="space-y-4">
+    <div :class="[
+      'p-4 rounded-2xl border shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between transition-all duration-300',
+      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+    ]">
+      <div class="relative flex-1">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input v-model="jabatanSearch"
+               @input="loadJabatan(1)"
+               placeholder="Cari nama jabatan / kode..."
+               :class="[
+                 'w-full pl-9 pr-4 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                 isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+               ]" />
+      </div>
+
+      <button @click="resetJabatanFilter" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer">
+        <i class="fa-solid fa-rotate-right"></i> Reset
+      </button>
+    </div>
+
+    <!-- G13 Tahap B: tabel referensi → komponen kit <app-crud-table>. -->
+    <app-crud-table
+      :items="paginatedJabatanReferensi"
+      :columns="[{ key: 'no', label: 'No', thClass: 'w-12 text-center' }, { key: 'kode', label: 'Kode' }, { key: 'nama', label: 'Nama Jabatan' }, { key: 'unit', label: 'Unit Kerja' }, { key: 'jenis', label: 'Jenis' }, { key: 'status', label: 'Status Jabatan', thClass: 'text-center' }]"
+      :page="jabatanRefPage"
+      :total-pages="jabatanRefTotalPages"
+      :total-data="filteredJabatanReferensi.length"
+      @change-page="loadJabatan"
+      empty-text="Tidak ada data jabatan."
+      empty-icon="fa-solid fa-briefcase">
+      <template #row="{ row: j, index: idx }">
+        <td class="py-3 px-4 text-center text-slate-400 font-bold">{{ (jabatanRefPage - 1) * pageSize + idx + 1 }}</td>
+        <td class="py-3 px-4 font-mono text-[10px] text-slate-400">{{ j.kode_jabatan || '-' }}</td>
+        <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">{{ j.nama_jabatan || '-' }}</td>
+        <td class="py-3 px-4 text-slate-600 dark:text-slate-300">{{ namaUnit(j.unit_id) }}</td>
+        <td class="py-3 px-4 capitalize text-slate-600 dark:text-slate-300">{{ j.jenis_jabatan || '-' }}</td>
+        <td class="py-3 px-4 text-center">
+          <span :class="{
+            'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800': String(j.status_jabatan).toUpperCase() === 'DEFINITIF',
+            'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800': String(j.status_jabatan).toUpperCase() === 'PLT',
+            'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700': !j.status_jabatan
+          }" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border">
+            {{ j.status_jabatan || 'DEFINITIF' }}
+          </span>
+        </td>
+      </template>
+    </app-crud-table>
+  </div>
+
+  <!-- ================= TAB 4: UNIT KERJA (REFERENSI SIMPEG) ================= -->
+  <div v-if="activeMasterTab === 'unit'" class="space-y-4">
+    <div :class="[
+      'p-4 rounded-2xl border shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between transition-all duration-300',
+      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+    ]">
+      <div class="relative flex-1">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input v-model="unitSearch"
+               @input="loadUnit(1)"
+               placeholder="Cari unit kerja..."
+               :class="[
+                 'w-full pl-9 pr-4 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                 isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+               ]" />
+      </div>
+
+      <button @click="resetUnitFilter" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer">
+        <i class="fa-solid fa-rotate-right"></i> Reset
+      </button>
+    </div>
+
+    <!-- G13 Tahap B: tabel referensi → komponen kit <app-crud-table>. -->
+    <app-crud-table
+      :items="paginatedUnitReferensi"
+      :columns="[{ key: 'no', label: 'No', thClass: 'w-12 text-center' }, { key: 'kode', label: 'Kode' }, { key: 'nama', label: 'Nama Unit Kerja' }, { key: 'jenis', label: 'Jenis Unit' }, { key: 'status', label: 'Status', thClass: 'text-center' }]"
+      :page="unitRefPage"
+      :total-pages="unitRefTotalPages"
+      :total-data="filteredUnitReferensi.length"
+      @change-page="loadUnit"
+      empty-text="Tidak ada data unit kerja."
+      empty-icon="fa-solid fa-building">
+      <template #row="{ row: u, index: idx }">
+        <td class="py-3 px-4 text-center text-slate-400 font-bold">{{ (unitRefPage - 1) * pageSize + idx + 1 }}</td>
+        <td class="py-3 px-4 font-mono text-[10px] text-slate-400">{{ u.kode_unit || '-' }}</td>
+        <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">{{ u.nama_unit || '-' }}</td>
+        <td class="py-3 px-4 capitalize text-slate-600 dark:text-slate-300">{{ u.jenis_unit || '-' }}</td>
+        <td class="py-3 px-4 text-center">
+          <span :class="String(u.status).toUpperCase() === 'AKTIF' ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border">
+            {{ u.status || 'AKTIF' }}
+          </span>
+        </td>
+      </template>
+    </app-crud-table>
+  </div>
+
+  <!-- ================= MODAL FORM LAPORAN HARIAN ================= -->
+  <div v-if="showLaporanForm" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+    <div :class="[
+      'rounded-3xl shadow-2xl border w-full max-w-2xl overflow-hidden transform transition-all',
+      isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-100 text-slate-800'
+    ]">
+      <!-- Modal Header -->
+      <div :class="[
+        'px-6 py-4 border-b flex items-center justify-between',
+        isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50/80 border-slate-100'
+      ]">
+        <h3 class="text-base font-bold flex items-center gap-2">
+          <i class="fa-solid" :class="laporanForm.id ? 'fa-pen-to-square text-amber-500' : 'fa-circle-plus text-indigo-500'"></i>
+          <span>{{ laporanForm.id ? 'Edit Laporan Harian' : 'Tambah Laporan Harian Baru' }}</span>
+        </h3>
+
+        <button @click="showLaporanForm = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body Form -->
+      <form @submit.prevent="saveLaporan" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto no-scrollbar">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <!-- Tanggal -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">
+              Tanggal Kegiatan <span class="text-rose-500">*</span>
+            </label>
+            <input v-model="laporanForm.tanggal"
+                   type="date"
+                   required
+                   :class="[
+                     'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                     isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                   ]" />
+          </div>
+
+          <!-- Pegawai: admin bebas pilih, non-admin dikunci ke dirinya sendiri -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">
+              Pegawai Pelaksana <span class="text-rose-500">*</span>
+            </label>
+            <select v-if="isAdmin"
+                    v-model="laporanForm.pegawai_id"
+                    required
+                    :class="[
+                      'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    ]">
+              <option value="">-- Pilih Pegawai --</option>
+              <option v-for="p in pegawaiList" :key="'form-p-'+p.pegawai_id" :value="p.pegawai_id">
+                {{ p.nama }} ({{ p.nip || p.pegawai_id }})
+              </option>
+            </select>
+            <div v-else class="w-full px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+              {{ namaPegawai(laporanForm.pegawai_id) }}
+            </div>
+          </div>
+
+          <!-- Waktu Mulai -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">
+              Waktu Mulai
+            </label>
+            <input v-model="laporanForm.waktu_mulai"
+                   type="time"
+                   :class="[
+                     'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                     isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                   ]" />
+          </div>
+
+          <!-- Waktu Selesai -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">
+              Waktu Selesai
+            </label>
+            <input v-model="laporanForm.waktu_selesai"
+                   type="time"
+                   :class="[
+                     'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                     isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                   ]" />
+          </div>
+
+          <!-- Jenis Kegiatan -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">
+              Jenis Kegiatan <span class="text-rose-500">*</span>
+            </label>
+            <select v-model="laporanForm.jenis_kegiatan"
+                    required
+                    :class="[
+                      'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    ]">
+              <option value="">-- Pilih Jenis --</option>
+              <option value="rutin">Rutin</option>
+              <option value="insidental">Insidental</option>
+              <option value="khusus">Khusus</option>
+              <option value="lapangan">Lapangan</option>
+              <option value="administrasi">Administrasi</option>
+            </select>
+          </div>
+
+          <!-- File / Evidence Link -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">Link Bukti / File URL</label>
+            <input v-model="laporanForm.file_url"
+                   type="url"
+                   placeholder="https://drive.google.com/..."
+                   :class="[
+                     'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                     isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                   ]" />
+          </div>
+
+          <!-- Deskripsi -->
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">
+              Deskripsi Kegiatan <span class="text-rose-500">*</span>
+            </label>
+            <textarea v-model="laporanForm.deskripsi"
+                      rows="2"
+                      required
+                      placeholder="Jelaskan secara singkat kegiatan yang dilaksanakan..."
+                      :class="[
+                        'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                        isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      ]"></textarea>
+          </div>
+
+          <!-- Hasil -->
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">Hasil / Output</label>
+            <textarea v-model="laporanForm.hasil"
+                      rows="2"
+                      placeholder="Hasil atau output yang dicapai dari kegiatan..."
+                      :class="[
+                        'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                        isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      ]"></textarea>
+          </div>
+
+          <!-- Kendala -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">Kendala (Jika ada)</label>
+            <textarea v-model="laporanForm.kendala"
+                      rows="2"
+                      placeholder="Hambatan saat pelaksanaan..."
+                      :class="[
+                        'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                        isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      ]"></textarea>
+          </div>
+
+          <!-- Tindak Lanjut -->
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider mb-1 text-slate-400">Tindak Lanjut</label>
+            <textarea v-model="laporanForm.tindak_lanjut"
+                      rows="2"
+                      placeholder="Rencana atau saran penanganan..."
+                      :class="[
+                        'w-full px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                        isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      ]"></textarea>
+          </div>
+
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button type="button"
+                  @click="showLaporanForm = false"
+                  class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer">
+            Batal
+          </button>
+
+          <button type="submit"
+                  :disabled="laporanSaving"
+                  class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer">
+            <i v-if="laporanSaving" class="fa-solid fa-spinner fa-spin"></i>
+            <i v-else class="fa-solid fa-floppy-disk"></i>
+            <span>{{ laporanSaving ? 'Menyimpan...' : 'Simpan Laporan' }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>

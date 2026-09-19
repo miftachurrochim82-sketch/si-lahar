@@ -1,0 +1,153 @@
+<!-- ============================================================
+     V_Dashboard.html — Dashboard Kinerja (G18c-2 KIT ALIGNMENT)
+     Kit: <app-stat-card> x4, <app-chart-bar bare> + <app-chart-doughnut
+     bare> (data dari computed kdTren*/kdRhk* di J_Kinerja),
+     <app-badge>, <app-skeleton>. Papan tim admin tetap tabel custom
+     (bar capaian = kelas .mini-progress A0_Style; kit tak punya
+     tabel non-paginasi). Footer info aplikasi = pengganti menu
+     Tentang yang dihapus (keputusan G18c-2).
+     ============================================================ -->
+<div v-if="currentPage === 'dashboard'" class="space-y-6 animate-fade-in select-none">
+
+  <!-- ================= BANNER SALAM ================= -->
+  <div :class="[
+    'p-6 rounded-3xl border shadow-sm relative overflow-hidden',
+    isDarkMode
+      ? 'bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 border-slate-800 text-white'
+      : 'bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 border-emerald-900 text-white'
+  ]">
+    <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+          e-Kinerja Harian
+        </span>
+        <h1 class="text-2xl sm:text-3xl font-black mt-2 tracking-tight">
+          Halo, {{ (currentUser && (currentUser.nama || currentUser.username)) || 'Pegawai' }} 👋
+        </h1>
+        <p class="text-sm text-slate-300 mt-1" v-if="kdData">
+          Periode {{ kdData.periode }} — capaian bulan ini
+          <b class="text-emerald-300">{{ kdData.kartu.capaian_bulan_pct }}%</b>
+          <span v-if="kdData.kartu.kandidat_predikat" class="ml-1 px-2 py-0.5 rounded-full bg-white/10 text-[11px] font-bold">{{ kdData.kartu.kandidat_predikat }}</span>
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button @click="navigateTo('realisasi')"
+                class="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square"></i> Isi Realisasi
+        </button>
+        <button @click="navigateTo('rencana_kanban')"
+                class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-900/30">
+          <i class="fa-solid fa-table-columns"></i> Papan Rencana
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading (kit skeleton) -->
+  <app-skeleton v-if="kdLoading && !kdData" type="cards" :count="4"></app-skeleton>
+
+  <template v-if="kdData">
+    <!-- ================= KARTU DIRI (kit app-stat-card) ================= -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <app-stat-card title="Capaian Bulan"
+                     :value="kdData.kartu.capaian_bulan_pct + '%'"
+                     icon="fa-solid fa-bullseye"
+                     color="emerald"
+                     :subtext="kdData.kartu.total_realisasi + ' realisasi / ' + kdData.kartu.total_rencana + ' rencana' + (kdData.kartu.kandidat_predikat ? ' · ' + kdData.kartu.kandidat_predikat : '')">
+      </app-stat-card>
+      <app-stat-card title="Streak Harian"
+                     :value="kdData.kartu.streak_hari + ' hari'"
+                     icon="fa-solid fa-fire"
+                     color="rose"
+                     subtext="berturut-turut isi laporan">
+      </app-stat-card>
+      <app-stat-card title="RHK Aktif"
+                     :value="kdData.kartu.rhk_aktif"
+                     icon="fa-solid fa-crosshairs"
+                     color="purple"
+                     subtext="target hasil kerja tahun ini">
+      </app-stat-card>
+      <app-stat-card title="Menunggu Verifikasi"
+                     :value="kdData.kartu.menunggu_verifikasi"
+                     icon="fa-solid fa-hourglass-half"
+                     color="amber"
+                     :subtext="'milikku bulan ini' + (isAdmin && kdData.kartu.antrian_verifikasi_tim ? ' · ' + kdData.kartu.antrian_verifikasi_tim + ' antrian tim' : '')">
+      </app-stat-card>
+    </div>
+
+    <!-- ================= CHART (kit app-chart-*, bare di dalam card) ================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="card p-5 lg:col-span-2">
+        <h3 class="text-sm font-black uppercase tracking-wider mb-3 text-slate-700 dark:text-slate-200">
+          <i class="fa-solid fa-chart-column text-emerald-500 mr-1"></i> Tren Realisasi 30 Hari
+        </h3>
+        <app-chart-bar bare :labels="kdTrenLabels" :datasets="kdTrenDatasets" :height="224"></app-chart-bar>
+      </div>
+      <div class="card p-5">
+        <h3 class="text-sm font-black uppercase tracking-wider mb-3 text-slate-700 dark:text-slate-200">
+          <i class="fa-solid fa-chart-pie text-indigo-500 mr-1"></i> Distribusi per RHK
+        </h3>
+        <app-chart-doughnut bare :labels="kdRhkLabels" :datasets="kdRhkDatasets" :colors="kdRhkColors" :height="224"></app-chart-doughnut>
+      </div>
+    </div>
+
+    <!-- ================= PAPAN TIM (admin, FR-20) ================= -->
+    <div v-if="isAdmin && kdAnalisa" class="card p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+          <i class="fa-solid fa-people-group text-emerald-500 mr-1"></i> Ketepatan Harian Tim — {{ kdAnalisa.periode }}
+        </h3>
+        <span class="text-[11px] font-bold text-slate-400">{{ kdAnalisa.hari_kerja_berjalan }} hari kerja berjalan</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <th class="py-2 pr-3">Pegawai</th>
+              <th class="py-2 pr-3">Hari Isi / Kerja</th>
+              <th class="py-2 pr-3">Ketepatan</th>
+              <th class="py-2 pr-3">Capaian</th>
+              <th class="py-2">Predikat</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="ang in kdAnalisa.tim" :key="ang.pegawai_id" class="border-b last:border-0 border-slate-100 dark:border-slate-800/60">
+              <td class="py-2 pr-3 font-bold text-slate-700 dark:text-slate-200">{{ ang.nama }}</td>
+              <td class="py-2 pr-3">{{ ang.hari_isi }} / {{ ang.hari_kerja }}</td>
+              <td class="py-2 pr-3">
+                <div class="flex items-center gap-2">
+                  <div class="mini-progress w-20">
+                    <div :class="ang.ketepatan_pct >= 90 ? 'bg-emerald-500' : (ang.ketepatan_pct >= 70 ? 'bg-amber-500' : 'bg-rose-500')"
+                         :style="{ width: Math.min(100, ang.ketepatan_pct) + '%' }"></div>
+                  </div>
+                  <span class="font-bold">{{ ang.ketepatan_pct }}%</span>
+                </div>
+              </td>
+              <td class="py-2 pr-3 font-bold">{{ ang.capaian_pct }}%</td>
+              <td class="py-2"><app-badge status="disetujui" :label="ang.kandidat_predikat" size="sm"></app-badge></td>
+            </tr>
+            <tr v-if="!kdAnalisa.tim.length">
+              <td colspan="5" class="py-6 text-center text-slate-400">Belum ada aktivitas tim bulan ini.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-3 flex items-center justify-between">
+        <p class="text-[11px] text-slate-400">
+          <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
+          Tunggakan verifikasi: <b>{{ kdAnalisa.tunggakan_total }}</b>
+        </p>
+        <button @click="navigateTo('verifikasi')" class="text-[11px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">
+          Buka Antrian Verifikasi →
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== Footer info aplikasi (pengganti menu Tentang, G18c-2) ===== -->
+    <div class="card p-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
+      <p><b class="text-slate-500 dark:text-slate-300">SILAHAR v2</b> — e-Kinerja Harian ASN (rujukan BKN, PermenPANRB 6/2022) · Satpol PP &amp; Damkar Kab. Trenggalek</p>
+      <p>Ekosistem frontend-cdn v2.7.5 · Backend per-domain G18b</p>
+    </div>
+  </template>
+</div>
