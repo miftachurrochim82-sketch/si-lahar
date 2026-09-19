@@ -1,0 +1,157 @@
+<script>
+// ============================================================
+// SILAHAR - J_State.html (G14/G15, 2026-09-18)
+// data() + computed khusus aplikasi.
+// G15 Tahap C: 14 data shell/auth (token, currentUser, isDarkMode,
+// currentPage, toasts, dll.) + computed isAdmin DIHAPUS karena sudah
+// disediakan AppCore (app-core.min.js) dengan kunci storage yang SAMA
+// (silahar_token / silahar_user / silahar_dark / pageSize 10).
+// ============================================================
+window.SilaharState = {
+  data() {
+    return {
+      dashboardData: {},
+
+      // Referensi SIMPEG,
+      pegawaiList: [],
+      unitList: [],
+      jabatanList: [],
+
+      // Chart Instances,
+      _chartJenisKegiatan: null,
+      _chartLaporanTanggal: null,
+
+      // Timer debounce pencarian,
+      _searchTimerLaporan: null,
+      _searchTimerRiwayat: null,
+
+      // Master Data Laporan Harian (Full CRUD),
+      laporanList: [],
+      laporanPage: 1,
+      laporanTotalPages: 1,
+      laporanTotalData: 0,
+      laporanSearch: '',
+      laporanLoading: false,
+      laporanSaving: false,
+      showLaporanForm: false,
+      laporanForm: {
+        id: '',
+        pegawai_id: '',
+        tanggal: '',
+        waktu_mulai: '',
+        waktu_selesai: '',
+        jenis_kegiatan: '',
+        deskripsi: '',
+        hasil: '',
+        kendala: '',
+        tindak_lanjut: '',
+        file_url: ''
+      },
+
+      // Riwayat Laporan State,
+      riwayatList: [],
+      riwayatPage: 1,
+      riwayatTotalPages: 1,
+      riwayatTotalData: 0,
+      riwayatSearch: '',
+      riwayatFilterTanggal: '',
+      riwayatFilterPegawai: '',
+      riwayatFilterJenis: '',
+      riwayatLoading: false,
+
+      // Analisa State,
+      analisaData: null,
+      analisaLoading: false,
+
+      // Profil State,
+      myProfile: null,
+      profilLoading: false,
+      isEditingProfil: false,
+      editProfilForm: { alamat: '', no_hp: '', email: '' },
+      profilSaving: false,
+
+      // Master Data Referensi Tab State,
+      activeMasterTab: 'laporan',
+      pegawaiSearch: '',
+      unitSearch: '',
+      jabatanSearch: '',
+      pegawaiRefPage: 1,
+      unitRefPage: 1,
+      jabatanRefPage: 1,
+
+      // Pengaturan State,
+      configList: [],
+      configLoading: false,
+      showEditConfig: false,
+      selectedConfig: null,
+      editConfigKey: '',
+      editConfigValue: '',
+      editConfigKeterangan: '',
+      configSaving: false,
+
+      // General Configuration
+    };
+  },
+
+  computed: {
+    filteredPegawaiReferensi() {
+      const q = String(this.pegawaiSearch || '').toLowerCase().trim();
+      if (!q) return this.pegawaiList || [];
+      return (this.pegawaiList || []).filter(p =>
+        String(p.nip || '').toLowerCase().includes(q) ||
+        String(p.nama || '').toLowerCase().includes(q) ||
+        String(p.email || '').toLowerCase().includes(q)
+      );
+    },
+
+    filteredUnitReferensi() {
+      const q = String(this.unitSearch || '').toLowerCase().trim();
+      if (!q) return this.unitList || [];
+      return (this.unitList || []).filter(u =>
+        String(u.kode_unit || '').toLowerCase().includes(q) ||
+        String(u.nama_unit || '').toLowerCase().includes(q)
+      );
+    },
+
+    filteredJabatanReferensi() {
+      const q = String(this.jabatanSearch || '').toLowerCase().trim();
+      if (!q) return this.jabatanList || [];
+      return (this.jabatanList || []).filter(j =>
+        String(j.kode_jabatan || '').toLowerCase().includes(q) ||
+        String(j.nama_jabatan || '').toLowerCase().includes(q)
+      );
+    },
+
+    // Paginated Referensi SIMPEG,
+
+    paginatedPegawaiReferensi() {
+      const start = (this.pegawaiRefPage - 1) * this.pageSize;
+      return this.filteredPegawaiReferensi.slice(start, start + this.pageSize);
+    },
+
+    paginatedUnitReferensi() {
+      const start = (this.unitRefPage - 1) * this.pageSize;
+      return this.filteredUnitReferensi.slice(start, start + this.pageSize);
+    },
+
+    paginatedJabatanReferensi() {
+      const start = (this.jabatanRefPage - 1) * this.pageSize;
+      return this.filteredJabatanReferensi.slice(start, start + this.pageSize);
+    },
+
+    // G13 Tahap B: total halaman referensi utk <app-crud-table>,
+
+    pegawaiRefTotalPages() {
+      return Math.max(1, Math.ceil((this.filteredPegawaiReferensi || []).length / this.pageSize));
+    },
+
+    jabatanRefTotalPages() {
+      return Math.max(1, Math.ceil((this.filteredJabatanReferensi || []).length / this.pageSize));
+    },
+
+    unitRefTotalPages() {
+      return Math.max(1, Math.ceil((this.filteredUnitReferensi || []).length / this.pageSize));
+    }
+  }
+};
+</script>
