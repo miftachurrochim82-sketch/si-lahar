@@ -36,18 +36,14 @@
           }
         }
       }
-    }
+    };
   </script>
 
   <!-- Font Awesome (sumber disamakan dgn si-kompetensi: jsDelivr npm) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 
-  <!-- Kit ekosistem frontend-cdn v2.8.0.
-       G18c-2 (KIT ALIGNMENT): Chart.js/SheetJS/jsPDF TIDAK lagi dimuat statis —
-       AppCore.loadLib() memuat on-demand (chart utk <app-chart-*>, xlsx/pdf utk
-       exportExcel/exportPDF). app-modules.min.js DITAMBAHKAN (<app-profile>,
-       <app-settings>). -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-common.min.css">
+  <!-- Kit ekosistem frontend-cdn v2.8.0 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.1/frontend/app-common.min.css">
 
   <!-- Boot dark-mode sebelum render: kunci silahar_dark -->
   <script>
@@ -56,12 +52,87 @@
     } catch (e) { /* diabaikan sengaja */ }
   </script>
 
-  <!-- Gaya kustom SILAHAR (G18c-2: dipangkas — hanya identitas + kanban/kalender) -->
-  <?!= include('A0_Style'); ?>
-
-  <!-- G18c-2: toast & animasi DISEDIAKAN app-common.css (kit) — style inline
-       lama dihapus. Sisa hanya v-cloak (sebelum CSS kit termuat). -->
+  <!-- ============================================================
+       GAYA KUSTOM SILAHAR (G18c-2)
+       Dipindah dari A0_Style.html inline (keputusan pemilik
+       2026-09-19). Hanya gaya khas yang tidak punya komponen kit:
+       papan KANBAN, grid KALENDER, bar capaian tipis.
+       Semua badge/btn/input/modal/toast/animasi/scrollbar SUDAH
+       disediakan app-common.css + komponen kit.
+       ============================================================ -->
   <style>
+    /* ---------- KANBAN (V_Rencana mode kanban) ---------- */
+    .kanban-col {
+      border-radius: 1rem;
+      padding: 0.75rem;
+      min-height: 10rem;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      background: #f8fafc;
+    }
+    .dark .kanban-col { background: rgba(15, 23, 42, 0.6); border-color: #1e293b; }
+    .kanban-col-mute { opacity: 0.7; }
+
+    .kanban-card {
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    .kanban-card:hover { box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.18); transform: translateY(-1px); }
+    .dark .kanban-card { background: #0f172a; border-color: rgba(51, 65, 85, 0.7); }
+
+    /* ---------- KALENDER (V_Rencana mode kalender) ----------
+       Poles 2026-09-19 (review pemilik): sel tanggal jadi KARTU
+       ber-gap; chip diberi napas; min-height dinaikkan agar chip
+       tidak overflow ke luar sel (fix T39). */
+    .cal-cell {
+      min-height: 7rem;                /* 5.5rem → 7rem (fix T39) */
+      padding: 0.5rem 0.5rem 0.375rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.6rem;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+    .cal-cell:hover { background: rgba(16, 185, 129, 0.06); box-shadow: 0 2px 8px -2px rgba(16, 185, 129, 0.25); }
+    .dark .cal-cell { border-color: #1e293b; background: #0f172a; }
+    .dark .cal-cell:hover { background: rgba(16, 185, 129, 0.1); }
+    .cal-cell-out { background: rgba(248, 250, 252, 0.8); border-style: dashed; }
+    .dark .cal-cell-out { background: rgba(2, 6, 23, 0.6); }
+    .cal-cell-today { box-shadow: inset 0 0 0 2px #10b981; }
+
+    .cal-chip {
+      display: block;
+      width: 100%;
+      padding: 3px 6px;              /* 2px 5px → 3px 6px (fix T39) */
+      margin-bottom: 3px;            /* 4px → 3px (fix T39) */
+      border-radius: 6px;
+      font-size: 10px;               /* 9px → 10px (fix T39, lebih mudah dibaca) */
+      font-weight: 700;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid transparent;
+    }
+    /* Warna chip = cermin status rencana */
+    .cal-chip-direncanakan { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+    .cal-chip-dikerjakan   { background: #fef3c7; color: #b45309; border-color: #fde68a; }
+    .cal-chip-selesai      { background: #d1fae5; color: #047857; border-color: #a7f3d0; }
+    .cal-chip-diverifikasi { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
+    .dark .cal-chip-direncanakan { background: #1e293b; color: #cbd5e1; border-color: #334155; }
+    .dark .cal-chip-dikerjakan   { background: rgba(120, 53, 15, 0.4); color: #fcd34d; border-color: #92400e; }
+    .dark .cal-chip-selesai      { background: rgba(6, 78, 59, 0.4); color: #6ee7b7; border-color: #065f46; }
+    .dark .cal-chip-diverifikasi { background: rgba(49, 46, 129, 0.4); color: #a5b4fc; border-color: #3730a3; }
+
+    /* ---------- Bar capaian tipis (dashboard/tim/rekap) ---------- */
+    .mini-progress { height: 6px; border-radius: 9999px; overflow: hidden; background: #e2e8f0; }
+    .dark .mini-progress { background: #1e293b; }
+    .mini-progress > div { height: 100%; border-radius: 9999px; }
+
+    /* Sisa v-cloak (sebelum CSS kit termuat) */
     [v-cloak] { display: none !important; }
   </style>
 </head>
@@ -88,7 +159,7 @@
                :error-message="errorMessage"
                :app-title="appTitle"
                app-subtitle="e-Kinerja Harian ASN"
-               instansi="Satpol PP & Damkar Kab. Trenggalek"
+               instansi="Satpol PP &amp; Damkar Kab. Trenggalek"
                @login="goToPlatform">
     </app-login>
 
@@ -122,17 +193,15 @@
           </app-header>
         </div>
 
-        <!-- Konten halaman dinamis (G18c-2: Tentang dihapus — tidak ada di
-             si-kompetensi; info aplikasi dilebur ke footer Dashboard) -->
+        <!-- Konten halaman dinamis -->
         <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <?!= include('V_Modals'); ?>
           <?!= include('V_Dashboard'); ?>
-          <?!= include('V_RencanaKanban'); ?>
-          <?!= include('V_RencanaKalender'); ?>
+          <?!= include('V_Rencana'); ?>
           <?!= include('V_Realisasi'); ?>
           <?!= include('V_SkpBulanan'); ?>
           <?!= include('V_Verifikasi'); ?>
-          <?!= include('V_MasterKinerja'); ?>
+          <?!= include('V_Master'); ?>
           <?!= include('V_Profil'); ?>
           <?!= include('V_Pengaturan'); ?>
         </main>
@@ -144,13 +213,12 @@
   <!-- Vue 3 Production Build (pinned) -->
   <script src="https://cdn.jsdelivr.net/npm/vue@3.5.42/dist/vue.global.prod.js"></script>
 
-  <!-- Kit ekosistem JS v2.7.5: komponen + core + modules (app-profile/app-settings) -->
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-components.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.0/frontend/app-modules.min.js"></script>
+  <!-- Kit ekosistem JS v2.8.0 -->
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.1/frontend/app-components.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.1/frontend/app-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.8.1/frontend/app-modules.min.js"></script>
 
-  <!-- Logika aplikasi: modul J_* (urutan WAJIB: State -> Api -> Actions ->
-       Export -> Kinerja -> App). G18c-2: J_Kinerja = modul e-Kinerja. -->
+  <!-- Logika aplikasi: modul J_* (urutan WAJIB) -->
   <?!= include('J_State'); ?>
   <?!= include('J_Helpers'); ?>
   <?!= include('J_Api'); ?>
