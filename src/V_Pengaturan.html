@@ -1,0 +1,20 @@
+<!-- ============================================================
+     SILAHAR - V_Pengaturan.html (G18c-2 KIT ALIGNMENT, 2026-09-18)
+     Wrapper untuk modul <app-settings> (app-modules.js CDN v2.7.5).
+     Modul sudah self-contained: mounted() auto load get_config;
+     CRUD save_config_item + delete { entity:'KONFIGURASI' } — semua
+     didukung CoreLib gateway (02_CoreGateway.gs) dan dikunci admin
+     (actionLevels get_config:'admin'; save/delete default admin).
+     Menggantikan 257 baris pengaturan hand-rolled (pola identik
+     dgn V_Pengaturan si-kompetensi v5.0.0).
+     ============================================================ -->
+<section v-if="currentPage === 'pengaturan'" class="space-y-6 animate-fade-in">
+  <app-settings v-if="isAdmin"></app-settings>
+
+  <!-- Fallback non-admin (seharusnya tak muncul — menu adminOnly) -->
+  <app-empty-state v-else
+                   icon="fa-solid fa-shield-halved"
+                   title="Akses Terbatas"
+                   subtitle="Halaman Pengaturan hanya dapat diakses oleh Administrator SILAHAR.">
+  </app-empty-state>
+</section>

@@ -1,0 +1,93 @@
+<!-- ============================================================
+     V_Realisasi.html — Realisasi Harian + Bukti (G18c-2 KIT ALIGNMENT)
+     Kit: <app-filter-bar> (defs = realisasiFilterDefs di J_Kinerja,
+     search debounce 400ms via onRealisasiFilterChange),
+     <app-crud-table> slot #row + paginasi bawaan, <app-badge>,
+     Form modal (size 2xl) dipusatkan di V_Modals. Badge pra-RHK = abu.
+     ============================================================ -->
+<div v-if="currentPage === 'realisasi'" class="space-y-4 animate-fade-in select-none">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight flex items-center gap-2 text-slate-800 dark:text-white">
+        <i class="fa-solid fa-clipboard-check text-emerald-600 dark:text-emerald-400"></i> Realisasi Harian
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        Catat hasil kerja harian beserta volume, satuan, dan bukti dukung.
+      </p>
+    </div>
+    <div class="flex gap-2 self-start md:self-auto">
+      <button @click="exportRealisasiExcel()" class="btn btn-primary">
+        <i class="fa-solid fa-file-excel"></i> Excel
+      </button>
+      <button @click="openRealisasiForm()" class="btn btn-aksi">
+        <i class="fa-solid fa-plus"></i> Realisasi Baru
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter (kit) -->
+  <app-filter-bar :filters="realisasiFilterDefs" v-model="realisasiFilters"
+                  @change="onRealisasiFilterChange" @reset="loadRealisasi(1)"></app-filter-bar>
+
+  <!-- Tabel (kit crud-table; kolom via slot #row) -->
+  <app-crud-table :items="realisasiList"
+                  :loading="realisasiLoading"
+                  :page="realisasiPage"
+                  :total-pages="realisasiTotalPages"
+                  :total-data="realisasiTotalData"
+                  empty-text="Belum ada realisasi pada filter ini. Klik &quot;Realisasi Baru&quot;."
+                  :columns="[
+                    { label: 'Tanggal', thClass: 'min-w-[110px]' },
+                    { label: 'Pegawai', thClass: isAdmin ? 'min-w-[180px]' : 'hidden' },
+                    { label: 'Uraian Hasil', thClass: 'min-w-[240px]' },
+                    { label: 'RHK', thClass: 'min-w-[200px]' },
+                    { label: 'Jenis', thClass: 'min-w-[130px]' },
+                    { label: 'Volume', thClass: 'min-w-[90px]' },
+                    { label: 'Bukti', thClass: 'min-w-[80px]' },
+                    { label: 'Verifikasi', thClass: 'min-w-[120px]' },
+                    { label: 'Aksi', thClass: 'text-right pr-6' }
+                  ]"
+                  @change-page="loadRealisasi($event)">
+    <template #row="{ row }">
+      <td class="py-3 px-4 font-bold whitespace-nowrap text-slate-700 dark:text-slate-300">{{ formatDateDisplay(row.tanggal) }}</td>
+      <td class="py-3 px-4 text-slate-700 dark:text-slate-300" :class="isAdmin ? '' : 'hidden'">{{ namaPegawai(row.pegawai_id) }}</td>
+      <td class="py-3 px-4 max-w-64 align-top">
+        <p class="font-bold leading-snug text-slate-800 dark:text-slate-100">{{ row.deskripsi }}</p>
+        <p v-if="row.catatan_atasan" class="text-[10px] text-rose-400 mt-0.5"><i class="fa-solid fa-comment-dots mr-0.5"></i>{{ row.catatan_atasan }}</p>
+      </td>
+      <td class="py-3 px-4">
+        <app-badge v-if="row.rhk_id" size="sm" status="info" :label="namaRhk_(row.rhk_id)"></app-badge>
+        <app-badge v-else size="sm" label="pra-RHK"></app-badge>
+      </td>
+      <td class="py-3 px-4 whitespace-nowrap text-slate-700 dark:text-slate-300">{{ namaJenisTugas_(row.jenis_tugas_id) }}</td>
+      <td class="py-3 px-4 whitespace-nowrap font-bold text-slate-700 dark:text-slate-300">
+        <template v-if="row.volume">{{ row.volume }} {{ namaSatuan_(row.satuan_id) }}</template>
+        <span v-else class="text-slate-300 dark:text-slate-600">—</span>
+      </td>
+      <td class="py-3 px-4">
+        <span v-if="(row.lampiran || []).length" class="text-[10px] font-black text-emerald-500">
+          <i class="fa-solid fa-paperclip mr-0.5"></i>{{ (row.lampiran || []).length }}
+        </span>
+        <span v-else class="text-slate-300 dark:text-slate-600">—</span>
+      </td>
+      <td class="py-3 px-4">
+        <app-badge size="sm"
+                   :status="badgeVerif_(row.status_verifikasi).status"
+                   :label="badgeVerif_(row.status_verifikasi).label"></app-badge>
+      </td>
+      <td class="py-3 pl-4 pr-6 text-right whitespace-nowrap">
+        <button @click="openRealisasiForm(row)" title="Ubah"
+                class="btn-icon mr-1.5">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </button>
+        <button @click="deleteRealisasi(row)" title="Hapus"
+                class="btn-icon btn-icon-danger">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </td>
+    </template>
+  </app-crud-table>
+
+</div>

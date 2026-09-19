@@ -1,0 +1,87 @@
+<!-- ============================================================
+     V_SkpBulanan.html — Laporan SKP Bulanan (G18c-2 KIT ALIGNMENT)
+     Kit: <app-crud-table> slot #row, <app-badge>; modal detail di V_Modals.
+     Filter periode = input month (tunggal, tidak perlu filter-bar).
+     Capaian = bar .mini-progress (A0_Style).
+     ============================================================ -->
+<div v-if="currentPage === 'skp_bulanan'" class="space-y-4 animate-fade-in select-none">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight flex items-center gap-2 text-slate-800 dark:text-white">
+        <i class="fa-solid fa-file-invoice text-emerald-600 dark:text-emerald-400"></i> Laporan SKP Bulanan
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        Rekap periodik bulanan capaian kinerja (predikat v1 = kuantitas). Target: terbit sebelum tanggal 5.
+      </p>
+    </div>
+    <div class="flex flex-wrap items-end gap-2 self-start md:self-auto">
+      <div>
+        <label class="form-label">Periode</label>
+        <input type="month" v-model="rekapPeriode" @change="loadRekap()" class="input !py-1.5 !text-xs">
+      </div>
+      <button v-if="isAdmin" @click="generateRekap()" :disabled="rekapGenerating" class="btn btn-primary disabled:opacity-50">
+        <i class="fa-solid" :class="rekapGenerating ? 'fa-circle-notch fa-spin' : 'fa-rotate'"></i>
+        {{ rekapGenerating ? 'Menghitung…' : 'Generate / Refresh' }}
+      </button>
+      <button @click="exportRekapExcel()" class="btn btn-aksi">
+        <i class="fa-solid fa-file-excel"></i> Excel
+      </button>
+      <button @click="exportRekapPDF()" class="btn btn-danger">
+        <i class="fa-solid fa-file-pdf"></i> PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabel rekap (kit crud-table, tanpa paginasi server: limit 100) -->
+  <app-crud-table :items="rekapList"
+                  :loading="rekapLoading"
+                  :page="1"
+                  :total-pages="1"
+                  :total-data="rekapList.length"
+                  empty-icon="fa-regular fa-file-lines"
+                  :empty-text="isAdmin ? 'Belum ada rekap periode ini. Klik Generate / Refresh.' : 'Belum ada rekap periode ini. Minta admin men-generate laporan.'"
+                  :columns="[
+                    { label: 'Periode', thClass: 'min-w-[100px]' },
+                    { label: 'Pegawai', thClass: isAdmin ? 'min-w-[180px]' : 'hidden' },
+                    { label: 'Rencana', thClass: 'text-center min-w-[80px]' },
+                    { label: 'Realisasi', thClass: 'text-center min-w-[80px]' },
+                    { label: 'Diverifikasi', thClass: 'text-center min-w-[90px]' },
+                    { label: 'Revisi', thClass: 'text-center min-w-[80px]' },
+                    { label: 'Capaian', thClass: 'min-w-[150px]' },
+                    { label: 'Predikat', thClass: 'min-w-[110px]' },
+                    { label: 'Status', thClass: 'min-w-[110px]' },
+                    { label: 'Detail', thClass: 'text-right pr-6' }
+                  ]">
+    <template #row="{ row }">
+      <td class="py-3 px-4 font-black text-slate-700 dark:text-slate-300">{{ row.periode }}</td>
+      <td class="py-3 px-4 font-bold text-slate-700 dark:text-slate-300" :class="isAdmin ? '' : 'hidden'">{{ namaPegawai(row.pegawai_id) }}</td>
+      <td class="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{{ row.total_rencana }}</td>
+      <td class="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{{ row.total_realisasi }}</td>
+      <td class="py-3 px-4 text-center font-bold text-emerald-500">{{ row.total_diverifikasi }}</td>
+      <td class="py-3 px-4 text-center" :class="row.total_revisi > 0 ? 'text-rose-500 font-bold' : 'text-slate-700 dark:text-slate-300'">{{ row.total_revisi }}</td>
+      <td class="py-3 px-4">
+        <div class="flex items-center gap-2">
+          <div class="mini-progress w-20">
+            <div class="bg-emerald-500" :style="{ width: Math.min(100, Number(row.capaian_pct) || 0) + '%' }"></div>
+          </div>
+          <span class="font-black text-slate-700 dark:text-slate-300">{{ row.capaian_pct }}%</span>
+        </div>
+      </td>
+      <td class="py-3 px-4"><app-badge size="sm" status="disetujui" :label="row.kandidat_predikat"></app-badge></td>
+      <td class="py-3 px-4">
+        <app-badge size="sm"
+                   :status="row.status_rekap === 'final' ? 'aktif' : 'menunggu'"
+                   :label="row.status_rekap || 'draf'"></app-badge>
+      </td>
+      <td class="py-3 pl-4 pr-6 text-right">
+        <button @click="openRekapDetail(row)"
+                class="px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+          <i class="fa-solid fa-eye mr-0.5"></i>Per RHK
+        </button>
+      </td>
+    </template>
+  </app-crud-table>
+
+</div>
