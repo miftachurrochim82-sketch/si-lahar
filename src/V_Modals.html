@@ -1,14 +1,25 @@
 <!-- ============================================================
-     V_Modals.html — SELURUH MODAL FORM SILAHAR (G18c-2 STRUCTURE
-     ALIGNMENT, 2026-09-18). Pola si-kompetensi v6: modal form
-     dipusatkan di satu include agar mudah diaudit & pola antar
-     app seragam. Semua modal = komponen kit <app-modal>; state
-     form hidup di root vm (mixin J_Kinerja), jadi aman dirender
-     di luar view manapun. Urutan: rencana kanban, rencana
-     kalender, realisasi, detail SKP, RHK, jenis tugas, satuan.
+     V_Modals.html — SELURUH MODAL FORM SILAHAR (G18c-2)
+     Pola si-kompetensi: modal form dipusatkan di satu include.
+     Semua modal = komponen kit <app-modal>; state form hidup di
+     root vm (mixin J_State + J_Kinerja).
+
+     Urutan modal:
+       1) Rencana (kanban & kalender)
+       2) Realisasi + bukti
+       3) Detail SKP per RHK
+       4) Laporan Harian v1 (dari V_MasterData, G18c-2 2026-09-19)
+       5) RHK
+       6) Jenis Tugas
+       7) Satuan
+
+     G18c-2 (2026-09-19):
+       - SATU modal rencana (dulu dua duplikat showRencanaForm +
+         showRencanaFormKal) — disatukan; kalender & kanban sama.
+       - Modal Laporan Harian v1 dipindah dari inline V_MasterData.
      ============================================================ -->
 
-  <!-- ================= MODAL FORM RENCANA (kit app-modal) ================= -->
+  <!-- ================= MODAL FORM RENCANA ================= -->
   <app-modal :show="showRencanaForm"
              :title="rencanaForm.id ? 'Ubah Rencana' : 'Rencana Baru'"
              subtitle="Rencana = kalimat HASIL, bukan aktivitas (rujukan BKN)"
@@ -58,57 +69,7 @@
     </div>
   </app-modal>
 
-  <!-- ================= MODAL FORM RENCANA (khusus kalender, BUGFIX) ================= -->
-  <app-modal :show="showRencanaFormKal"
-             title="Rencana Baru"
-             subtitle="Rencana = kalimat HASIL, bukan aktivitas (rujukan BKN)"
-             icon="fa-solid fa-calendar-plus"
-             size="lg"
-             :loading="rencanaSaving"
-             confirm-text="Simpan Rencana"
-             cancel-text="Batal"
-             @close="showRencanaFormKal = false"
-             @confirm="saveRencana()">
-    <div class="space-y-3">
-      <div>
-        <label class="form-label">Tanggal Rencana *</label>
-        <input type="date" v-model="rencanaForm.tanggal_rencana" class="input w-full">
-      </div>
-      <div>
-        <label class="form-label">RHK (hasil kerja)</label>
-        <select v-model="rencanaForm.rhk_id" class="input w-full">
-          <option value="">— Tanpa RHK —</option>
-          <option v-for="r in rhkList" :key="r.id" :value="r.id">{{ r.nama_rhk }} ({{ r.periode_tahun }})</option>
-        </select>
-      </div>
-      <div>
-        <label class="form-label">Jenis Tugas</label>
-        <select v-model="rencanaForm.jenis_tugas_id" class="input w-full">
-          <option value="">— Pilih jenis —</option>
-          <option v-for="j in jenisTugasList" :key="j.id" :value="j.id">{{ j.nama }}</option>
-        </select>
-      </div>
-      <div>
-        <label class="form-label">Rencana Hasil *</label>
-        <textarea v-model="rencanaForm.rencana_hasil" rows="3" placeholder="Contoh: Tersusunnya laporan patroli wilayah kota"
-                  class="input w-full resize-none"></textarea>
-      </div>
-      <div>
-        <label class="form-label">Prioritas</label>
-        <div class="flex gap-2">
-          <button v-for="p in ['biasa', 'penting', 'mendesak']" :key="p" type="button" @click="rencanaForm.prioritas = p"
-                  class="flex-1 px-3 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer capitalize"
-                  :class="rencanaForm.prioritas === p
-                    ? 'border-emerald-500 bg-emerald-500 text-white shadow'
-                    : 'border-slate-300 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'">
-            {{ p }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </app-modal>
-
-  <!-- ================= MODAL FORM REALISASI (kit app-modal) ================= -->
+  <!-- ================= MODAL FORM REALISASI ================= -->
   <app-modal :show="showRealisasiForm"
              :title="realisasiForm.id ? 'Ubah Realisasi' : 'Realisasi Baru'"
              subtitle="Hasil kerja + volume + bukti dukung (link/foto/notulen)"
@@ -198,7 +159,7 @@
     </div>
   </app-modal>
 
-  <!-- ================= MODAL DETAIL PER RHK (kit app-modal) ================= -->
+  <!-- ================= MODAL DETAIL PER RHK (SKP Bulanan) ================= -->
   <app-modal :show="showRekapDetail && !!rekapDetail"
              :title="'SKP Bulanan ' + (rekapDetail ? rekapDetail.periode : '')"
              :subtitle="(isAdmin && rekapDetail) ? namaPegawai(rekapDetail.pegawai_id) : 'Capaian per RHK'"
@@ -259,7 +220,106 @@
     </template>
   </app-modal>
 
-  <!-- ================= MODAL RHK (kit app-modal + app-pegawai-picker) ================= -->
+  <!-- ================= MODAL FORM LAPORAN HARIAN v1 =================
+       Dipindah dari V_MasterData (keputusan pemilik 2026-09-19: semua
+       modal di V_Modals). CRUD v1 LAPORAN_HARIAN (admin bebas;
+       non-admin pemilik). Field verifikasi dikunci di server (P2). -->
+  <app-modal :show="showLaporanForm"
+             :title="laporanForm.id ? 'Edit Laporan Harian' : 'Laporan Harian Baru'"
+             subtitle="Catat kegiatan harian (legacy v1 — untuk migrasi)"
+             icon="fa-solid fa-file-pen"
+             size="2xl"
+             :loading="laporanSaving"
+             confirm-text="Simpan Laporan"
+             cancel-text="Batal"
+             @close="showLaporanForm = false"
+             @confirm="saveLaporan()">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+      <!-- Tanggal -->
+      <div>
+        <label class="form-label">Tanggal Kegiatan *</label>
+        <input type="date" v-model="laporanForm.tanggal" class="input w-full" required>
+      </div>
+
+      <!-- Pegawai: admin bebas pilih, non-admin dikunci -->
+      <div>
+        <label class="form-label">Pegawai Pelaksana *</label>
+        <select v-if="isAdmin" v-model="laporanForm.pegawai_id" class="input w-full" required>
+          <option value="">-- Pilih Pegawai --</option>
+          <option v-for="p in pegawaiList" :key="'form-p-' + (p.pegawai_id || p.id)" :value="p.pegawai_id || p.id">
+            {{ p.nama || p.nama_lengkap }} ({{ p.nip || p.pegawai_id }})
+          </option>
+        </select>
+        <div v-else class="w-full px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+          {{ namaPegawai(laporanForm.pegawai_id) }}
+        </div>
+      </div>
+
+      <!-- Waktu Mulai -->
+      <div>
+        <label class="form-label">Waktu Mulai</label>
+        <input type="time" v-model="laporanForm.waktu_mulai" class="input w-full">
+      </div>
+
+      <!-- Waktu Selesai -->
+      <div>
+        <label class="form-label">Waktu Selesai</label>
+        <input type="time" v-model="laporanForm.waktu_selesai" class="input w-full">
+      </div>
+
+      <!-- Jenis Kegiatan -->
+      <div>
+        <label class="form-label">Jenis Kegiatan *</label>
+        <select v-model="laporanForm.jenis_kegiatan" class="input w-full" required>
+          <option value="">-- Pilih Jenis --</option>
+          <option value="rutin">Rutin</option>
+          <option value="insidental">Insidental</option>
+          <option value="khusus">Khusus</option>
+          <option value="lapangan">Lapangan</option>
+          <option value="administrasi">Administrasi</option>
+        </select>
+      </div>
+
+      <!-- File / Link Bukti -->
+      <div>
+        <label class="form-label">Link Bukti / File URL</label>
+        <input type="url" v-model="laporanForm.file_url" placeholder="https://drive.google.com/..." class="input w-full">
+      </div>
+
+      <!-- Deskripsi -->
+      <div class="md:col-span-2">
+        <label class="form-label">Deskripsi Kegiatan *</label>
+        <textarea v-model="laporanForm.deskripsi" rows="2" required
+                  placeholder="Jelaskan secara singkat kegiatan yang dilaksanakan..."
+                  class="input w-full resize-none"></textarea>
+      </div>
+
+      <!-- Hasil -->
+      <div class="md:col-span-2">
+        <label class="form-label">Hasil / Output</label>
+        <textarea v-model="laporanForm.hasil" rows="2" placeholder="Hasil atau output yang dicapai dari kegiatan..."
+                  class="input w-full resize-none"></textarea>
+      </div>
+
+      <!-- Kendala -->
+      <div>
+        <label class="form-label">Kendala (Jika ada)</label>
+        <textarea v-model="laporanForm.kendala" rows="2" placeholder="Hambatan saat pelaksanaan..."
+                  class="input w-full resize-none"></textarea>
+      </div>
+
+      <!-- Tindak Lanjut -->
+      <div>
+        <label class="form-label">Tindak Lanjut</label>
+        <textarea v-model="laporanForm.tindak_lanjut" rows="2" placeholder="Rencana atau saran penanganan..."
+                  class="input w-full resize-none"></textarea>
+      </div>
+
+    </div>
+  </app-modal>
+
+  <!-- ================= MODAL RHK ================= -->
   <app-modal :show="showRhkForm"
              :title="rhkForm.id ? 'Ubah RHK' : 'RHK Baru'"
              subtitle="RHK = kalimat HASIL tahunan (rujukan BKN)"
@@ -326,7 +386,7 @@
     </div>
   </app-modal>
 
-  <!-- ================= MODAL JENIS TUGAS (kit app-modal) ================= -->
+  <!-- ================= MODAL JENIS TUGAS ================= -->
   <app-modal :show="showJenisForm"
              :title="jenisForm.id ? 'Ubah Jenis Tugas' : 'Jenis Tugas Baru'"
              icon="fa-solid fa-tags"
@@ -359,7 +419,7 @@
     </div>
   </app-modal>
 
-  <!-- ================= MODAL SATUAN (kit app-modal) ================= -->
+  <!-- ================= MODAL SATUAN ================= -->
   <app-modal :show="showSatuanForm"
              :title="satuanForm.id ? 'Ubah Satuan' : 'Satuan Baru'"
              icon="fa-solid fa-ruler"
