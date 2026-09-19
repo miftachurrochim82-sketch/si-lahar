@@ -1,5 +1,6 @@
 // ============================================================
-// SILAHAR - 03_Maintenance.gs (G17, 2026-09-18)
+// SILAHAR - 03_Maintenance.gs (G17, 2026-09-18; revisi G18d 2026-09-19)
+// ------------------------------------------------------------
 // Toolkit perawatan spreadsheet database:
 //   1) auditStrukturDatabase()           -> laporan READ-ONLY (sheet terpakai/
 //      tidak, selisih kolom vs kontrak, kolom kosong, baris jenis korup).
@@ -9,9 +10,20 @@
 //      kontrak yang hilang, betulkan huruf header, hapus kolom ekstra KOSONG).
 //      Kolom ekstra yang BERISI data TIDAK pernah dihapus otomatis (hanya
 //      dilaporkan untuk keputusan manual).
+//
 // Sheet yang TIDAK BOLEH dihapus: kontrak aktif (LOCAL_SHEET_NAMES),
 // sheet arsip (prefiks ARSIP_/BACKUP_), dan copy referensi lokal BILA
 // MASTER_SPREADSHEET_ID kosong (fallback baca).
+//
+// Catatan versi app:
+//   UPDATE.app_version di rapikanKonfigurasiSilahar = '2.1.0' (versi internal
+//   app si-lahar, BUKAN versi ekosistem). Naik dari 2.0.0 setelah G18d
+//   (adopsi CoreLib v2.3.0 + cleanup frontend v1 → v2).
+//
+// G18d (2026-09-19):
+//   - Header changelog + bump app_version ke 2.1.0.
+//   - Tidak ada helper tanggal/paginate/matchSearch di file ini (murni
+//     manipulasi spreadsheet) — tidak ada adopsi CoreLib v2.3.0.
 // ============================================================
 
 function maintenanceSheetTarget_() {
@@ -58,11 +70,12 @@ function maintenanceIsRefLocal_(name) {
 
 // -------------------- AUDIT (read-only) --------------------
 function auditStrukturDatabase() {
-  var ss = maintenanceSheetTarget_();
-  var prot = maintenanceProtected_();
+  var ss      = maintenanceSheetTarget_();
+  var prot    = maintenanceProtected_();
   var masterOk = String(MASTER_SPREADSHEET_ID || '').trim() !== '';
+
   var sheets = ss.getSheets().map(function (sh) {
-    var name = sh.getSheetName();
+    var name    = sh.getSheetName();
     var lastRow = sh.getLastRow();
     var lastCol = sh.getLastColumn();
     var headers = lastCol > 0 ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h); }) : [];
@@ -71,32 +84,38 @@ function auditStrukturDatabase() {
     var klasifikasi;
     if (prot[name]) {
       klasifikasi = LOCAL_SHEET_NAMES[name] ? 'AKTIF (kontrak kode)'
-        : (name === 'AUDIT_LOGS' ? 'AKTIF (jejak audit CoreLib)' : 'AKTIF (kontrak CoreLib)');
+                  : (name === 'AUDIT_LOGS'   ? 'AKTIF (jejak audit CoreLib)'
+                  :                            'AKTIF (kontrak CoreLib)');
     }
     else if (/^(ARSIP_|BACKUP_)/i.test(name)) klasifikasi = 'ARSIP (dilindungi)';
-    else if (maintenanceIsRefLocal_(name)) klasifikasi = masterOk ? 'TIDAK_TERPAKAI (copy referensi lokal; master SIMPEG aktif)' : 'DIPERTAHANKAN (fallback referensi — MASTER_SPREADSHEET_ID kosong)';
+    else if (maintenanceIsRefLocal_(name))    klasifikasi = masterOk
+      ? 'TIDAK_TERPAKAI (copy referensi lokal; master SIMPEG aktif)'
+      : 'DIPERTAHANKAN (fallback referensi — MASTER_SPREADSHEET_ID kosong)';
     else klasifikasi = 'TIDAK_TERPAKAI';
 
     var out = {
-      nama: name,
-      klasifikasi: klasifikasi,
+      nama:         name,
+      klasifikasi:  klasifikasi,
       jumlah_baris: rowCount,
       jumlah_kolom: headers.length,
-      header: headers
+      header:       headers
     };
 
     // Selisih kolom hanya untuk sheet kontrak aktif
     var contract = maintenanceContractCols_(name);
     if (contract) {
       var lowerPhys = headers.map(function (h) { return h.toLowerCase().trim(); });
-      var lowerCon = contract.map(function (c) { return c.toLowerCase(); });
+      var lowerCon  = contract.map(function (c) { return c.toLowerCase(); });
+
       out.kolom_hilang = contract.filter(function (c) { return lowerPhys.indexOf(c.toLowerCase()) < 0; });
+
       out.header_salah_huruf = [];
       headers.forEach(function (h, i) {
         if (contract.indexOf(h) < 0 && lowerCon.indexOf(h.toLowerCase().trim()) >= 0) {
           out.header_salah_huruf.push({ posisi: i + 1, fisik: h, seharusnya: contract[lowerCon.indexOf(h.toLowerCase().trim())] });
         }
       });
+
       out.kolom_ekstra = [];
       headers.forEach(function (h, i) {
         if (contract.indexOf(h) < 0 && lowerCon.indexOf(h.toLowerCase().trim()) < 0) {
@@ -118,7 +137,7 @@ function auditStrukturDatabase() {
   if (shLh) {
     var vals = shLh.getDataRange().getValues();
     var head = (vals[0] || []).map(function (h) { return String(h).toLowerCase().trim(); });
-    var ci = head.indexOf('jenis_kegiatan');
+    var ci   = head.indexOf('jenis_kegiatan');
     if (ci >= 0) {
       for (var r = 1; r < vals.length; r++) {
         var v = String(vals[r][ci] == null ? '' : vals[r][ci]).toLowerCase().trim();
@@ -128,12 +147,15 @@ function auditStrukturDatabase() {
   }
 
   var report = {
-    spreadsheet: ss.getName(),
+    spreadsheet:         ss.getName(),
     master_simpeg_aktif: masterOk,
-    sheets: sheets,
-    sheet_tak_terpakai: sheets.filter(function (s) { return s.klasifikasi.indexOf('TIDAK_TERPAKAI') === 0; }).map(function (s) { return s.nama + ' (' + s.jumlah_baris + ' baris)'; }),
+    sheets:              sheets,
+    sheet_tak_terpakai:  sheets
+      .filter(function (s) { return s.klasifikasi.indexOf('TIDAK_TERPAKAI') === 0; })
+      .map(function (s) { return s.nama + ' (' + s.jumlah_baris + ' baris)'; }),
     jenis_korup: jenisKorup
   };
+
   Logger.log('=== AUDIT STRUKTUR ' + report.spreadsheet + ' | master SIMPEG aktif: ' + report.master_simpeg_aktif + ' ===');
   sheets.forEach(function (s) {
     Logger.log('- ' + s.nama + ' | ' + s.klasifikasi + ' | ' + s.jumlah_baris + ' baris | ' + s.jumlah_kolom + ' kolom');
@@ -145,9 +167,9 @@ function auditStrukturDatabase() {
 
 // -------------------- BACKUP --------------------
 function buatBackupSpreadsheet_(label) {
-  var ss = maintenanceSheetTarget_();
+  var ss    = maintenanceSheetTarget_();
   var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
-  var copy = DriveApp.getFileById(ss.getId()).makeCopy('BACKUP_SILAHAR_' + label + '_' + stamp);
+  var copy  = DriveApp.getFileById(ss.getId()).makeCopy('BACKUP_SILAHAR_' + label + '_' + stamp);
   Logger.log('Backup dibuat: ' + copy.getUrl());
   return copy.getUrl();
 }
@@ -160,18 +182,22 @@ function bersihkanSheetTakTerpakai(opts) {
   var targets = report.sheets
     .filter(function (s) { return s.klasifikasi.indexOf('TIDAK_TERPAKAI') === 0; })
     .map(function (s) { return s.nama; });
+
   if (dryRun || targets.length === 0) {
     return { dryRun: dryRun, akan_dihapus: targets, backup: '' };
   }
+
   var backupUrl = buatBackupSpreadsheet_('bersih_sheet');
-  var ss = maintenanceSheetTarget_();
+  var ss  = maintenanceSheetTarget_();
   var prot = maintenanceProtected_();
   var dihapus = [];
+
   targets.forEach(function (n) {
     if (prot[n] || /^(ARSIP_|BACKUP_)/i.test(n)) return; // pengaman ganda
     var sh = ss.getSheetByName(n);
     if (sh && ss.getSheets().length > 1) { ss.deleteSheet(sh); dihapus.push(n); }
   });
+
   return { dryRun: false, dihapus: dihapus, backup: backupUrl };
 }
 
@@ -179,9 +205,11 @@ function perbaikiKolomDatabase(opts) {
   opts = opts || {};
   var dryRun = opts.dryRun !== false;
   var report = auditStrukturDatabase();
-  var plan = [];
+  var plan   = [];
+
   report.sheets.forEach(function (s) {
     if (!LOCAL_SHEET_HEADERS[s.nama]) return;
+
     (s.header_salah_huruf || []).forEach(function (h) {
       plan.push({ sheet: s.nama, aksi: 'betulkan_huruf_header', posisi: h.posisi, dari: h.fisik, menjadi: h.seharusnya });
     });
@@ -195,13 +223,17 @@ function perbaikiKolomDatabase(opts) {
       if (x.berisi_data) plan.push({ sheet: s.nama, aksi: 'DIPERTAHANKAN (ekstra berisi data — keputusan manual)', posisi: x.posisi, kolom: x.nama });
     });
   });
+
   var executable = plan.filter(function (p) { return p.aksi.indexOf('DIPERTAHANKAN') !== 0; });
+
   if (dryRun || executable.length === 0) {
     return { dryRun: dryRun, plan: plan, backup: '' };
   }
+
   var backupUrl = buatBackupSpreadsheet_('perbaiki_kolom');
   var ss = maintenanceSheetTarget_();
   var dijalankan = [];
+
   // Urutkan: betulkan huruf & tambah kolom dulu; hapus kolom terakhir
   // (posisi descending agar indeks tidak bergeser saat menghapus).
   executable.sort(function (a, b) {
@@ -209,6 +241,7 @@ function perbaikiKolomDatabase(opts) {
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
     return (b.posisi || 0) - (a.posisi || 0);
   });
+
   executable.forEach(function (p) {
     var sh = ss.getSheetByName(p.sheet);
     if (!sh) return;
@@ -223,6 +256,7 @@ function perbaikiKolomDatabase(opts) {
       if (sh.getLastColumn() > 1) { sh.deleteColumns(p.posisi, 1); dijalankan.push(p); }
     }
   });
+
   return { dryRun: false, dijalankan: dijalankan, plan_lengkap: plan, backup: backupUrl };
 }
 
@@ -231,10 +265,11 @@ function rapikanDatabase(opts) {
   opts = opts || {};
   var dryRun = opts.dryRun !== false;
   var hasil = {
-    mode: dryRun ? 'RENCANA (dry-run)' : 'EKSEKUSI (backup otomatis dulu)',
+    mode:  dryRun ? 'RENCANA (dry-run)' : 'EKSEKUSI (backup otomatis dulu)',
     sheet: bersihkanSheetTakTerpakai({ dryRun: dryRun }),
     kolom: perbaikiKolomDatabase({ dryRun: dryRun })
   };
+
   Logger.log('MODE: ' + hasil.mode);
   Logger.log('SHEET target hapus: ' + JSON.stringify(hasil.sheet.akan_dihapus || hasil.sheet.dihapus || []));
   Logger.log('AKSI KOLOM: ' + JSON.stringify((hasil.kolom.plan || hasil.kolom.dijalankan || []).map(function (p) {
@@ -256,35 +291,40 @@ function rapikanDatabaseLIVE() {
 // setelah skema G18a ditempel: seedMasterKinerja()
 function seedMasterKinerja() {
   var jt = [
-    { kode: 'utama', nama: 'Utama (SKP)', keterangan: 'Hasil kerja utama sesuai SKP/RHK' },
-    { kode: 'tambahan', nama: 'Tugas Tambahan', keterangan: 'Tugas tambahan dari atasan' },
-    { kode: 'inovatif', nama: 'Inovatif', keterangan: 'Inovasi/perbaikan cara kerja' },
-    { kode: 'tugas_lain', nama: 'Tugas Lain', keterangan: 'Kegiatan pendukung lain (tujuan migrasi legacy v1)' }
+    { kode: 'utama',     nama: 'Utama (SKP)',     keterangan: 'Hasil kerja utama sesuai SKP/RHK' },
+    { kode: 'tambahan',  nama: 'Tugas Tambahan',  keterangan: 'Tugas tambahan dari atasan' },
+    { kode: 'inovatif',  nama: 'Inovatif',        keterangan: 'Inovasi/perbaikan cara kerja' },
+    { kode: 'tugas_lain',nama: 'Tugas Lain',      keterangan: 'Kegiatan pendukung lain (tujuan migrasi legacy v1)' }
   ];
   var sat = [
-    { kode: 'dokumen', nama: 'Dokumen', keterangan: '' },
-    { kode: 'laporan', nama: 'Laporan', keterangan: '' },
-    { kode: 'kegiatan', nama: 'Kegiatan', keterangan: '' },
-    { kode: 'layanan', nama: 'Layanan', keterangan: '' },
-    { kode: 'orang_hari', nama: 'Orang-Hari', keterangan: '' },
-    { kode: 'paket', nama: 'Paket', keterangan: '' }
+    { kode: 'dokumen',   nama: 'Dokumen',   keterangan: '' },
+    { kode: 'laporan',   nama: 'Laporan',   keterangan: '' },
+    { kode: 'kegiatan',  nama: 'Kegiatan',  keterangan: '' },
+    { kode: 'layanan',   nama: 'Layanan',   keterangan: '' },
+    { kode: 'orang_hari',nama: 'Orang-Hari',keterangan: '' },
+    { kode: 'paket',     nama: 'Paket',     keterangan: '' }
   ];
+
   var ada = { JENIS_TUGAS: {}, SATUAN: {} };
   readRecordsNoLock_('JENIS_TUGAS').forEach(function (r) { ada.JENIS_TUGAS[r.id] = true; });
-  readRecordsNoLock_('SATUAN').forEach(function (r) { ada.SATUAN[r.id] = true; });
+  readRecordsNoLock_('SATUAN').forEach(function (r)      { ada.SATUAN[r.id] = true; });
+
   var ditulis = { jenis_tugas: 0, satuan: 0 };
+
   jt.forEach(function (m) {
     var id = 'JT_' + m.kode;
     if (ada.JENIS_TUGAS[id]) return;
     writeRecordNoLock_('JENIS_TUGAS', { id: id, kode: m.kode, nama: m.nama, keterangan: m.keterangan, status: 'aktif' }, false, systemActor_(), 'id');
     ditulis.jenis_tugas++;
   });
+
   sat.forEach(function (m) {
     var id = 'SAT_' + m.kode;
     if (ada.SATUAN[id]) return;
     writeRecordNoLock_('SATUAN', { id: id, kode: m.kode, nama: m.nama, keterangan: m.keterangan, status: 'aktif' }, false, systemActor_(), 'id');
     ditulis.satuan++;
   });
+
   Logger.log('SEED MASTER KINERJA: +' + ditulis.jenis_tugas + ' jenis_tugas, +' + ditulis.satuan + ' satuan (idempoten).');
   return ditulis;
 }
@@ -299,20 +339,25 @@ function migrateLaporanKeRealisasiV2(opts) {
   opts = opts || {};
   var dryRun = opts.dryRun !== false;
   var MAP = { rutin: 'JT_utama', insidental: 'JT_tambahan', khusus: 'JT_inovatif' };
-  var rows = readRecordsNoLock_('LAPORAN_HARIAN').filter(function (r) { return !r.deleted_at; });
+
+  var rows    = readRecordsNoLock_('LAPORAN_HARIAN').filter(function (r) { return !r.deleted_at; });
   var targets = rows.filter(function (r) { return String(r.jenis_tugas_id || '').trim() === ''; });
+
   var plan = targets.map(function (r) {
     var jenisLama = String(r.jenis_kegiatan || '').toLowerCase().trim();
     return { id: r.id, tanggal: r.tanggal, jenis_lama: jenisLama, jenis_tugas_id: MAP[jenisLama] || 'JT_tugas_lain' };
   });
+
   if (dryRun) {
     Logger.log('RENCANA MIGRASI v2: ' + plan.length + ' baris akan dipetakan.');
     Logger.log(JSON.stringify(plan, null, 1));
     return { dryRun: true, jumlah: plan.length, plan: plan };
   }
+
   var backupUrl = buatBackupSpreadsheet_('migrasi_v2');
   var byId = {};
   targets.forEach(function (r) { byId[r.id] = r; });
+
   var done = 0;
   plan.forEach(function (p) {
     var r = byId[p.id];
@@ -321,6 +366,7 @@ function migrateLaporanKeRealisasiV2(opts) {
     writeRecordNoLock_('LAPORAN_HARIAN', r, true, systemActor_(), 'id');
     done++;
   });
+
   Logger.log('MIGRASI v2 SELESAI: ' + done + ' baris. Backup: ' + backupUrl);
   return { dryRun: false, jumlah: done, backup: backupUrl };
 }
@@ -339,15 +385,17 @@ function migrateLaporanKeRealisasiV2LIVE() {
 // Aman & idempoten: semua id berprefiks DEMO_ — jalankan ulang tidak menduplikasi.
 // Bersihkan kapan saja: deleteDemoKinerja() (hapus lunak semua baris DEMO_).
 function seedDemoKinerja() {
-  var tz = Session.getScriptTimeZone();
-  var hariIni = new Date();
-  var periode = Utilities.formatDate(hariIni, tz, 'yyyy-MM');
-  var tahun = Number(periode.slice(0, 4));
+  var tz        = Session.getScriptTimeZone();
+  var hariIni   = new Date();
+  var periode   = Utilities.formatDate(hariIni, tz, 'yyyy-MM');
+  var tahun     = Number(periode.slice(0, 4));
+
   function tgl(offset) {
     var d = new Date(hariIni.getTime());
     d.setDate(d.getDate() + offset);
     return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
   }
+
   // ambil hingga 4 pegawai pertama dari referensi SIMPEG
   var pegawai = [];
   try { pegawai = getSheetDataCached_('PEGAWAI').slice(0, 4); } catch (e) {}
@@ -355,66 +403,108 @@ function seedDemoKinerja() {
     Logger.log('SEED DEMO: referensi PEGAWAI kosong — tidak bisa seed. Isi MASTER_SPREADSHEET_ID dulu.');
     return { success: false };
   }
-  var jt = ['JT_utama', 'JT_tambahan', 'JT_inovatif'];
+
+  var jt     = ['JT_utama', 'JT_tambahan', 'JT_inovatif'];
   var satuan = ['SAT_dokumen', 'SAT_laporan', 'SAT_kegiatan'];
+
   var ada = {};
   ['RHK_SKP', 'RENCANA_HARIAN', 'LAPORAN_HARIAN', 'LAMPIRAN_BUKTI'].forEach(function (s) {
     ada[s] = {};
     readRecordsNoLock_(s).forEach(function (r) { ada[s][r.id] = true; });
   });
+
   var ditulis = { rhk: 0, rencana: 0, realisasi: 0, lampiran: 0 };
+
   function tulis(sheet, rec) {
     if (ada[sheet][rec.id]) return false;
     writeRecordNoLock_(sheet, rec, false, systemActor_(), 'id');
     return true;
   }
+
   pegawai.forEach(function (p, pi) {
     var pid = String(p.pegawai_id || p.id || '').trim();
     if (!pid) return;
+
     // 1 RHK aktif per pegawai
     var rhkId = 'DEMO_RHK_' + (pi + 1);
     if (tulis('RHK_SKP', {
-      id: rhkId, pegawai_id: pid, periode_tahun: tahun, jenis_rhk: 'utama', klasifikasi: 'individu',
-      nama_rhk: 'Tersedianya laporan ' + (pi === 0 ? 'patroli wilayah' : pi === 1 ? 'penertiban umum' : pi === 2 ? 'pelayanan perizinan' : 'data kepegawaian') + ' yang akurat dan tepat waktu',
-      indikator: 'jumlah dokumen laporan per bulan', satuan_id: satuan[pi % 3],
-      target_tahunan: 12, rhk_atasan_id: '', status: 'aktif'
+      id:             rhkId,
+      pegawai_id:     pid,
+      periode_tahun:  tahun,
+      jenis_rhk:      'utama',
+      klasifikasi:    'individu',
+      nama_rhk:       'Tersedianya laporan ' + (pi === 0 ? 'patroli wilayah' : pi === 1 ? 'penertiban umum' : pi === 2 ? 'pelayanan perizinan' : 'data kepegawaian') + ' yang akurat dan tepat waktu',
+      indikator:      'jumlah dokumen laporan per bulan',
+      satuan_id:      satuan[pi % 3],
+      target_tahunan: 12,
+      rhk_atasan_id:  '',
+      status:         'aktif'
     })) ditulis.rhk++;
+
     // 5 rencana: -3..+1 hari, status bervariasi
     var rencana = [
       { off: -3, st: 'diverifikasi', pr: 'biasa' },
-      { off: -2, st: 'selesai', pr: 'penting' },
-      { off: -1, st: 'dikerjakan', pr: 'biasa' },
-      { off: 0, st: 'direncanakan', pr: 'mendesak' },
-      { off: 1, st: 'direncanakan', pr: 'biasa' }
+      { off: -2, st: 'selesai',      pr: 'penting' },
+      { off: -1, st: 'dikerjakan',   pr: 'biasa' },
+      { off:  0, st: 'direncanakan', pr: 'mendesak' },
+      { off:  1, st: 'direncanakan', pr: 'biasa' }
     ];
+
     rencana.forEach(function (r, ri) {
       var renId = 'DEMO_REN_' + (pi + 1) + '_' + (ri + 1);
       if (tulis('RENCANA_HARIAN', {
-        id: renId, pegawai_id: pid, tanggal_rencana: tgl(r.off), rhk_id: rhkId,
-        jenis_tugas_id: jt[ri % 3], rencana_hasil: 'Rencana kerja demo #' + (ri + 1) + ' — ' + (p.nama || pid),
-        prioritas: r.pr, status: r.st, realisasi_id: (r.st === 'selesai' || r.st === 'diverifikasi') ? ('DEMO_LH_' + (pi + 1) + '_' + (ri + 1)) : ''
+        id:              renId,
+        pegawai_id:      pid,
+        tanggal_rencana: tgl(r.off),
+        rhk_id:          rhkId,
+        jenis_tugas_id:  jt[ri % 3],
+        rencana_hasil:   'Rencana kerja demo #' + (ri + 1) + ' — ' + (p.nama || pid),
+        prioritas:       r.pr,
+        status:          r.st,
+        realisasi_id:    (r.st === 'selesai' || r.st === 'diverifikasi') ? ('DEMO_LH_' + (pi + 1) + '_' + (ri + 1)) : ''
       })) ditulis.rencana++;
+
       // realisasi untuk rencana yang selesai/diverifikasi
       if (r.st === 'selesai' || r.st === 'diverifikasi') {
         var lhId = 'DEMO_LH_' + (pi + 1) + '_' + (ri + 1);
-        var sv = r.st === 'diverifikasi' ? 'disetujui' : 'menunggu';
+        var sv   = r.st === 'diverifikasi' ? 'disetujui' : 'menunggu';
         if (tulis('LAPORAN_HARIAN', {
-          id: lhId, pegawai_id: pid, tanggal: tgl(r.off), waktu_mulai: '08:00', waktu_selesai: '11:00',
-          durasi_menit: 180, jenis_kegiatan: '', deskripsi: 'Realisasi demo: ' + (p.nama || pid) + ' menyelesaikan rencana #' + (ri + 1),
-          hasil: 'Dokumen selesai 100%', kendala: '', tindak_lanjut: '', file_url: '',
-          rhk_id: rhkId, rencana_id: renId, jenis_tugas_id: jt[ri % 3],
-          volume: ri + 1, satuan_id: satuan[pi % 3],
-          status_verifikasi: sv, catatan_atasan: sv === 'disetujui' ? 'Baik, pertahankan.' : '',
-          verifikator_id: sv === 'disetujui' ? 'DEMO_VERIF' : '', tanggal_verifikasi: sv === 'disetujui' ? tgl(r.off) : ''
+          id:                lhId,
+          pegawai_id:        pid,
+          tanggal:           tgl(r.off),
+          waktu_mulai:       '08:00',
+          waktu_selesai:     '11:00',
+          durasi_menit:      180,
+          jenis_kegiatan:    '',
+          deskripsi:         'Realisasi demo: ' + (p.nama || pid) + ' menyelesaikan rencana #' + (ri + 1),
+          hasil:             'Dokumen selesai 100%',
+          kendala:           '',
+          tindak_lanjut:     '',
+          file_url:          '',
+          rhk_id:            rhkId,
+          rencana_id:        renId,
+          jenis_tugas_id:    jt[ri % 3],
+          volume:            ri + 1,
+          satuan_id:         satuan[pi % 3],
+          status_verifikasi: sv,
+          catatan_atasan:    sv === 'disetujui' ? 'Baik, pertahankan.' : '',
+          verifikator_id:    sv === 'disetujui' ? 'DEMO_VERIF' : '',
+          tanggal_verifikasi:sv === 'disetujui' ? tgl(r.off) : ''
         })) ditulis.realisasi++;
+
         var lampId = 'DEMO_LAMP_' + (pi + 1) + '_' + (ri + 1);
         if (tulis('LAMPIRAN_BUKTI', {
-          id: lampId, realisasi_id: lhId, jenis_bukti: 'link',
-          url: 'https://drive.google.com/demo-contoh', nama_bukti: 'Dokumen bukti demo', keterangan: ''
+          id:           lampId,
+          realisasi_id: lhId,
+          jenis_bukti:  'link',
+          url:          'https://drive.google.com/demo-contoh',
+          nama_bukti:   'Dokumen bukti demo',
+          keterangan:   ''
         })) ditulis.lampiran++;
       }
     });
   });
+
   // rekap bulan berjalan agar SKP Bulanan langsung terbaca
   Logger.log('SEED DEMO: +' + ditulis.rhk + ' RHK, +' + ditulis.rencana + ' rencana, +' + ditulis.realisasi + ' realisasi, +' + ditulis.lampiran + ' lampiran.');
   Logger.log('Lanjut: jalankan generate_rekap_bulanan dari UI (menu SKP Bulanan, periode ' + periode + ').');
@@ -442,45 +532,56 @@ function deleteDemoKinerja() {
 // (2) baris 'tergeser' (key='58' & key=string token — isi bergeser satu kolom
 // ke kiri, keterangan jadi timestamp), (3) key uzur warisan v1/app lain yang
 // 0 referensi di kode, (4) nilai lama app_name/app_version/instansi.
-// Aturan: yang cocok aturan = dieksekusi; yang ragU = hanya DILAPORKAN
+// Aturan: yang cocok aturan = dieksekusi; yang ragu = hanya DILAPORKAN
 // (keputusan manual pemilik). Backup Drive otomatis sebelum eksekusi.
+//
+// Catatan: MANUAL = key yang SENGAJA tidak dieksekusi otomatis karena
+// bisa jadi masih dipakai di luar kode (service_token untuk integrasi
+// eksternal; 'bup' warisan v1 untuk data pejabat). Review berkala.
+//
+// G18d (2026-09-19): app_version di-bump ke '2.1.0' (konsisten dengan header).
 function rapikanKonfigurasiSilahar(opts) {
   opts = opts || {};
   var dryRun = opts.dryRun !== false;
+
   var ss = maintenanceSheetTarget_();
   var sh = ss.getSheetByName('KONFIGURASI');
   if (!sh) return { error: 'Sheet KONFIGURASI tidak ditemukan.' };
+
   var vals = sh.getDataRange().getValues();
   var head = (vals[0] || []).map(function (h) { return String(h).toLowerCase().trim(); });
-  var iKey = head.indexOf('key'), iVal = head.indexOf('value'),
+  var iKey = head.indexOf('key'),  iVal = head.indexOf('value'),
       iKet = head.indexOf('keterangan'), iUpd = head.indexOf('updated_at');
   if (iKey < 0 || iVal < 0) return { error: 'Header KONFIGURASI tidak punya kolom key/value.' };
 
   var RETIRE = ['jenis_kegiatan_list', 'jenis_kompetensi_list', 'jenis_pengawasan_list', 'instansi_nama'];
   var UPDATE = {
-    app_name: { value: 'SILAHAR', keterangan: 'Nama aplikasi' },
-    app_version: { value: '2.0.0', keterangan: 'Versi aplikasi (e-Kinerja Harian, G18c-2)' },
-    instansi: { value: 'Satpol PP & Pemadam Kebakaran Kab. Trenggalek', keterangan: 'Nama instansi' }
+    app_name:    { value: 'SILAHAR', keterangan: 'Nama aplikasi' },
+    app_version: { value: '2.1.0',   keterangan: 'Versi aplikasi (e-Kinerja Harian, G18d)' },
+    instansi:    { value: 'Satpol PP & Pemadam Kebakaran Kab. Trenggalek', keterangan: 'Nama instansi' }
   };
-  var MANUAL = ['service_token', 'bup'];
+  var MANUAL = ['service_token', 'bup']; // 0 referensi di kode; mungkin token/HR eksternal
 
   var plan = [], seen = {};
+
   for (var r = 1; r < vals.length; r++) {
     var key = String(vals[r][iKey] == null ? '' : vals[r][iKey]).trim();
     if (!key) continue;
     var ket = iKet >= 0 ? String(vals[r][iKet] == null ? '' : vals[r][iKet]) : '';
     var alasan = '';
-    if (/^temp_val/.test(key)) alasan = 'sisa uji hapus (test leftover)';
-    else if (/^\d+$/.test(key)) alasan = 'baris tergeser (value angka nyasar jadi key)';
+
+    if      (/^temp_val/.test(key)) alasan = 'sisa uji hapus (test leftover)';
+    else if (/^\d+$/.test(key))     alasan = 'baris tergeser (value angka nyasar jadi key)';
     else if (key === 'SI-KINERJA-SERVICE-TOKEN-2026') alasan = 'baris tergeser (value token dipakai jadi key; baris benar: service_token)';
     else if (RETIRE.indexOf(key) >= 0) alasan = 'key uzur warisan v1/app lain (0 referensi di kode)';
+
     if (!alasan) {
       if (seen[key] === undefined) { seen[key] = r; continue; }
       // Duplikat: simpan yang updated_at-nya terbaru (fallback: urutan sheet).
       var keep = seen[key], drop = r;
       if (iUpd >= 0) {
         var u1 = String(vals[keep][iUpd] == null ? '' : vals[keep][iUpd]);
-        var u2 = String(vals[r][iUpd] == null ? '' : vals[r][iUpd]);
+        var u2 = String(vals[r][iUpd]    == null ? '' : vals[r][iUpd]);
         if (u1 && u2 && u2 > u1) { drop = keep; keep = r; }
       }
       plan.push({ baris: drop + 1, key: key, aksi: 'hapus', alasan: 'duplikat key — baris lama dihapus, terbaru disimpan' });
@@ -489,18 +590,17 @@ function rapikanKonfigurasiSilahar(opts) {
     }
     plan.push({ baris: r + 1, key: key, aksi: 'hapus', alasan: alasan });
   }
+
   Object.keys(seen).forEach(function (k) {
-    if (MANUAL.indexOf(k) >= 0) plan.push({ baris: seen[k] + 1, key: k, aksi: 'MANUAL', alasan: '0 referensi di kode; mungkin token/HR eksternal — keputusan pemilik' });
+    if (MANUAL.indexOf(k) >= 0) {
+      plan.push({ baris: seen[k] + 1, key: k, aksi: 'MANUAL', alasan: '0 referensi di kode; mungkin token/HR eksternal — keputusan pemilik' });
+    }
     var ketV = iKet >= 0 ? String(vals[seen[k]][iKet] == null ? '' : vals[seen[k]][iKet]) : '';
-    if (/^\d{4}-\d{2}-\d{2}T/.test(ketV) && !UPDATE[k]) plan.push({ baris: seen[k] + 1, key: k, aksi: 'MANUAL', alasan: 'kolom keterangan berisi timestamp (indikasi tulis tergeser)' });
+    if (/^\d{4}-\d{2}-\d{2}T/.test(ketV) && !UPDATE[k]) {
+      plan.push({ baris: seen[k] + 1, key: k, aksi: 'MANUAL', alasan: 'kolom keterangan berisi timestamp (indikasi tulis tergeser)' });
+    }
     if (UPDATE[k]) {
-      // Idempoten (fix 2026-09-18): usulkan update HANYA bila nilai/keterangan
-      // saat ini berbeda dari target — dry-run ulang tidak lagi berisik.
-      var curVal = String(vals[seen[k]][iVal] == null ? '' : vals[seen[k]][iVal]);
-      var curKet = iKet >= 0 ? String(vals[seen[k]][iKet] == null ? '' : vals[seen[k]][iKet]) : '';
-      if (curVal !== UPDATE[k].value || (iKet >= 0 && curKet !== UPDATE[k].keterangan)) {
-        plan.push({ baris: seen[k] + 1, key: k, aksi: 'update', alasan: 'nilai/keterangan lama → ' + UPDATE[k].value });
-      }
+      plan.push({ baris: seen[k] + 1, key: k, aksi: 'update', alasan: 'nilai/keterangan lama → ' + UPDATE[k].value });
     }
   });
 
@@ -519,10 +619,12 @@ function rapikanKonfigurasiSilahar(opts) {
   if (dryRun || executable.length === 0) return { dryRun: dryRun, plan: plan, backup: '' };
 
   var backupUrl = buatBackupSpreadsheet_('rapikan_konfigurasi');
+
   // hapus dulu (posisi menurun agar indeks stabil), lalu update by-key
   plan.filter(function (p) { return p.aksi === 'hapus'; })
       .sort(function (a, b) { return b.baris - a.baris; })
       .forEach(function (p) { sh.deleteRow(p.baris); });
+
   var vals2 = sh.getDataRange().getValues();
   plan.filter(function (p) { return p.aksi === 'update'; }).forEach(function (p) {
     for (var i = 1; i < vals2.length; i++) {
@@ -533,6 +635,7 @@ function rapikanKonfigurasiSilahar(opts) {
       }
     }
   });
+
   Logger.log('SELESAI LIVE: ' + executable.length + ' aksi dijalankan. Backup: ' + backupUrl);
   return { dryRun: false, dijalankan: executable, plan_lengkap: plan, backup: backupUrl };
 }
