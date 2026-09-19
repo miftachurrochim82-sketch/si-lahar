@@ -1,31 +1,52 @@
 <script>
 // ============================================================
-// SILAHAR - J_State.html (G14/G15, 2026-09-18)
-// data() + computed khusus aplikasi.
-// G15 Tahap C: 14 data shell/auth (token, currentUser, isDarkMode,
-// currentPage, toasts, dll.) + computed isAdmin DIHAPUS karena sudah
-// disediakan AppCore (app-core.min.js) dengan kunci storage yang SAMA
-// (silahar_token / silahar_user / silahar_dark / pageSize 10).
+// SILAHAR - J_State.html (G18c-2 CLEANUP, 2026-09-19)
+// ------------------------------------------------------------
+// data() khusus aplikasi.
+//
+// G15 Tahap C (2026-09-18): 14 data shell/auth (token, currentUser,
+// isDarkMode, currentPage, toasts, dll.) + computed isAdmin
+// DIHAPUS — AppCore menyediakannya (kunci storage silahar_*).
+//
+// G18c-2 CLEANUP (2026-09-19): state v1 orphan DIHAPUS setelah
+// V_MasterData.html + V_Analisa.html + V_RiwayatLaporan.html
+// dihapus dan J_Api.html dibersihkan:
+//   - dashboardData, _chartJenisKegiatan, _chartLaporanTanggal
+//     → pemakai loadDashboard/renderDashboardCharts sudah dihapus.
+//   - _searchTimerRiwayat + semua state riwayat* (9 field)
+//     → loadRiwayat sudah dihapus.
+//   - analisaData, analisaLoading → loadAnalisa sudah dihapus.
+//   - configList, configLoading, showEditConfig, selectedConfig,
+//     editConfigKey/Value/Keterangan, configSaving → loadConfig
+//     sudah dihapus; V_Pengaturan pakai <app-settings> kit.
+//   - activeMasterTab + pegawaiSearch/unitSearch/jabatanSearch +
+//     pegawaiRefPage/unitRefPage/jabatanRefPage → V_MasterData
+//     sudah dihapus.
+//   - 9 computed (filtered*/paginated*/*RefTotalPages) → V_Master
+//     pakai computed *RefFiltered di J_Kinerja.
+//
+// YANG TERSISA (dipakai aktif):
+//   - pegawaiList/unitList/jabatanList — WAJIB (AppCore menulis
+//     ke field ini untuk reactivity loadMasterSIMPEG).
+//   - State Laporan v1 (tab Laporan V_Master): laporanList/Page/
+//     TotalPages/TotalData/Search/Loading/Saving + laporanForm +
+//     showLaporanForm + _searchTimerLaporan.
+//   - State Profil (Paspor Kinerja): myProfile/profilLoading/
+//     isEditingProfil/editProfilForm/profilSaving.
 // ============================================================
 window.SilaharState = {
   data() {
     return {
-      dashboardData: {},
-
-      // Referensi SIMPEG,
+      // ============ REFERENSI SIMPEG ============
+      // JANGAN DIHAPUS: AppCore.loadMasterSIMPEG menulis ke field
+      // ini (self.pegawaiList = ...) — deklarasi di sini WAJIB ada
+      // agar Vue reactive (AppCore tidak mendeklarasi di data()-nya).
       pegawaiList: [],
       unitList: [],
       jabatanList: [],
 
-      // Chart Instances,
-      _chartJenisKegiatan: null,
-      _chartLaporanTanggal: null,
-
-      // Timer debounce pencarian,
+      // ============ LAPORAN HARIAN v1 (tab Laporan V_Master) ============
       _searchTimerLaporan: null,
-      _searchTimerRiwayat: null,
-
-      // Master Data Laporan Harian (Full CRUD),
       laporanList: [],
       laporanPage: 1,
       laporanTotalPages: 1,
@@ -48,110 +69,23 @@ window.SilaharState = {
         file_url: ''
       },
 
-      // Riwayat Laporan State,
-      riwayatList: [],
-      riwayatPage: 1,
-      riwayatTotalPages: 1,
-      riwayatTotalData: 0,
-      riwayatSearch: '',
-      riwayatFilterTanggal: '',
-      riwayatFilterPegawai: '',
-      riwayatFilterJenis: '',
-      riwayatLoading: false,
-
-      // Analisa State,
-      analisaData: null,
-      analisaLoading: false,
-
-      // Profil State,
+      // ============ PROFIL (Paspor Kinerja) ============
       myProfile: null,
       profilLoading: false,
       isEditingProfil: false,
       editProfilForm: { alamat: '', no_hp: '', email: '' },
-      profilSaving: false,
+      profilSaving: false
 
-      // Master Data Referensi Tab State,
-      activeMasterTab: 'laporan',
-      pegawaiSearch: '',
-      unitSearch: '',
-      jabatanSearch: '',
-      pegawaiRefPage: 1,
-      unitRefPage: 1,
-      jabatanRefPage: 1,
-
-      // Pengaturan State,
-      configList: [],
-      configLoading: false,
-      showEditConfig: false,
-      selectedConfig: null,
-      editConfigKey: '',
-      editConfigValue: '',
-      editConfigKeterangan: '',
-      configSaving: false,
-
-      // General Configuration
+      // Catatan: state e-Kinerja (dashboard, rencana, realisasi, skp,
+      // verifikasi, master kinerja, paspor) ada di J_Kinerja.
     };
-  },
-
-  computed: {
-    filteredPegawaiReferensi() {
-      const q = String(this.pegawaiSearch || '').toLowerCase().trim();
-      if (!q) return this.pegawaiList || [];
-      return (this.pegawaiList || []).filter(p =>
-        String(p.nip || '').toLowerCase().includes(q) ||
-        String(p.nama || '').toLowerCase().includes(q) ||
-        String(p.email || '').toLowerCase().includes(q)
-      );
-    },
-
-    filteredUnitReferensi() {
-      const q = String(this.unitSearch || '').toLowerCase().trim();
-      if (!q) return this.unitList || [];
-      return (this.unitList || []).filter(u =>
-        String(u.kode_unit || '').toLowerCase().includes(q) ||
-        String(u.nama_unit || '').toLowerCase().includes(q)
-      );
-    },
-
-    filteredJabatanReferensi() {
-      const q = String(this.jabatanSearch || '').toLowerCase().trim();
-      if (!q) return this.jabatanList || [];
-      return (this.jabatanList || []).filter(j =>
-        String(j.kode_jabatan || '').toLowerCase().includes(q) ||
-        String(j.nama_jabatan || '').toLowerCase().includes(q)
-      );
-    },
-
-    // Paginated Referensi SIMPEG,
-
-    paginatedPegawaiReferensi() {
-      const start = (this.pegawaiRefPage - 1) * this.pageSize;
-      return this.filteredPegawaiReferensi.slice(start, start + this.pageSize);
-    },
-
-    paginatedUnitReferensi() {
-      const start = (this.unitRefPage - 1) * this.pageSize;
-      return this.filteredUnitReferensi.slice(start, start + this.pageSize);
-    },
-
-    paginatedJabatanReferensi() {
-      const start = (this.jabatanRefPage - 1) * this.pageSize;
-      return this.filteredJabatanReferensi.slice(start, start + this.pageSize);
-    },
-
-    // G13 Tahap B: total halaman referensi utk <app-crud-table>,
-
-    pegawaiRefTotalPages() {
-      return Math.max(1, Math.ceil((this.filteredPegawaiReferensi || []).length / this.pageSize));
-    },
-
-    jabatanRefTotalPages() {
-      return Math.max(1, Math.ceil((this.filteredJabatanReferensi || []).length / this.pageSize));
-    },
-
-    unitRefTotalPages() {
-      return Math.max(1, Math.ceil((this.filteredUnitReferensi || []).length / this.pageSize));
-    }
   }
+
+  // Computed: DIHAPUS semua (semua orphan).
+  // Computed aktif untuk master ada di J_Kinerja:
+  //   rhkFiltered, jenisFiltered, satuanFiltered,
+  //   pegawaiRefFiltered, jabatanRefFiltered, unitRefFiltered,
+  //   tahunRhkOptions, labelTambahPerTab,
+  //   + dashboard/kanban/kalender/paspor (lihat J_Kinerja).
 };
 </script>
