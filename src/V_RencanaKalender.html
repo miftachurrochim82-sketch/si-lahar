@@ -45,12 +45,13 @@
   <div class="card overflow-hidden !p-0">
     <app-skeleton v-if="calLoading" type="table"></app-skeleton>
     <template v-else>
-      <!-- Kepala hari (Senin pertama) -->
-      <div class="grid grid-cols-7 text-center text-[10px] font-black uppercase tracking-wider py-2 border-b text-slate-500 border-slate-200 bg-slate-50 dark:text-slate-400 dark:border-slate-800 dark:bg-slate-900">
+      <!-- Kepala hari (Senin pertama) — gap & padding horizontal SAMA
+           dengan grid sel supaya kolom sejajar -->
+      <div class="grid grid-cols-7 gap-1.5 px-2 pt-2 pb-2 text-center text-[10px] font-black uppercase tracking-wider border-b text-slate-500 border-slate-200 bg-slate-50 dark:text-slate-400 dark:border-slate-800 dark:bg-slate-900">
         <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div>
         <div class="text-amber-500">Sab</div><div class="text-rose-400">Min</div>
       </div>
-      <div class="grid grid-cols-7">
+      <div class="grid grid-cols-7 gap-1.5 p-2 bg-slate-100/60 dark:bg-slate-950/40">
         <div v-for="sel in calCells" :key="sel.key"
              @click="bukaKanbanTanggal(sel.key)"
              :class="['cal-cell', sel.bulanLain ? 'cal-cell-out' : '', sel.hariIni ? 'cal-cell-today' : '']">
@@ -79,4 +80,4 @@
     <span class="text-slate-400 px-1">(batal disembunyikan dari kalender)</span>
   </div>
 
-</div>
+</div
