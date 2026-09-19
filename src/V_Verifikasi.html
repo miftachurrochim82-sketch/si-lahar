@@ -1,0 +1,74 @@
+<!-- ============================================================
+     V_Verifikasi.html — Antrian Verifikasi (G18c-2 KIT ALIGNMENT)
+     Kit: <app-badge>, <app-empty-state>, <app-skeleton>.
+     Admin/atasan: realisasi status 'menunggu' urut tanggal terlama
+     (SLA 2 hari kerja) + aksi setujui/revisi (catatan wajib utk revisi).
+     Kartu antrian = custom (kaya info + bukti) — diizinkan 05_UIUX.
+     ============================================================ -->
+<div v-if="currentPage === 'verifikasi'" class="space-y-4 animate-fade-in select-none">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight flex items-center gap-2 text-slate-800 dark:text-white">
+        <i class="fa-solid fa-user-check text-emerald-600 dark:text-emerald-400"></i> Antrian Verifikasi
+        <app-badge v-if="antrianTotal" status="menunggu" :label="String(antrianTotal)"></app-badge>
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        Urut tanggal terlama dulu — target SLA: 80% diverifikasi ≤ 2 hari kerja.
+      </p>
+    </div>
+    <button @click="loadAntrian()" class="btn btn-secondary self-start md:self-auto">
+      <i class="fa-solid fa-rotate mr-1"></i> Muat Ulang
+    </button>
+  </div>
+
+  <!-- Bukan admin -->
+  <app-empty-state v-if="!isAdmin"
+                   icon="fa-solid fa-lock"
+                   title="Halaman khusus admin/atasan"
+                   subtitle="Antrian verifikasi hanya dapat diakses oleh admin atau atasan langsung.">
+  </app-empty-state>
+
+  <!-- Daftar antrian -->
+  <app-skeleton v-else-if="antrianLoading" type="cards" :count="3"></app-skeleton>
+  <div v-else class="space-y-3">
+    <div v-for="item in antrianList" :key="item.id" class="card p-4">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
+            <span><i class="fa-regular fa-calendar mr-1"></i>{{ formatDateDisplay(item.tanggal) }}</span>
+            <app-badge size="sm" :label="namaPegawai(item.pegawai_id)"></app-badge>
+            <app-badge v-if="item.rhk_id" size="sm" status="info" :label="namaRhk_(item.rhk_id)"></app-badge>
+            <app-badge v-else size="sm" label="pra-RHK"></app-badge>
+            <span>{{ namaJenisTugas_(item.jenis_tugas_id) }}</span>
+            <span v-if="item.volume" class="font-black text-emerald-500">{{ item.volume }} {{ namaSatuan_(item.satuan_id) }}</span>
+          </div>
+          <p class="text-sm font-bold mt-1.5 leading-snug text-slate-800 dark:text-slate-100">{{ item.deskripsi }}</p>
+          <p v-if="item.hasil" class="text-xs text-slate-400 mt-0.5">{{ item.hasil }}</p>
+          <!-- Bukti lampiran -->
+          <div v-if="(item.lampiran || []).length" class="mt-2 flex flex-wrap gap-1.5">
+            <a v-for="l in item.lampiran" :key="l.id" :href="l.url || '#'" target="_blank" rel="noopener"
+               class="px-2 py-1 rounded-lg text-[10px] font-black border border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition-all">
+              <i class="fa-solid fa-paperclip mr-1"></i>{{ l.nama_bukti || l.jenis_bukti }}
+            </a>
+          </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button @click="verifikasiRealisasi(item, 'setujui')" class="btn btn-success">
+            <i class="fa-solid fa-check mr-1"></i>Setujui
+          </button>
+          <button @click="verifikasiRealisasi(item, 'revisi')" class="btn btn-danger">
+            <i class="fa-solid fa-pen mr-1"></i>Revisi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <app-empty-state v-if="!antrianList.length"
+                     icon="fa-regular fa-circle-check"
+                     title="Antrian kosong 🎉"
+                     subtitle="Semua realisasi sudah diverifikasi.">
+    </app-empty-state>
+  </div>
+</div>
