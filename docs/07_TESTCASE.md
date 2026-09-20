@@ -1,7 +1,9 @@
 # 07 — TESTCASE [TO-BE v2: SILAHAR e-Kinerja Harian — 2026-09-19]
 
-> Setiap TC dijalankan sebagai fungsi uji di `99_Test.gs` (pola `testLaporanGuards`):
-> actor `viewer`/`admin`/`super`, assert `success`/`code`. Satu baris TC = satu assert kelompok.
+> TC-27/28/29 dijalankan sebagai fungsi uji di `99_Test.gs` (`runLibraryTests`,
+> `testAdopsiG18d`, `testLaporanGuards`). **TC-01…26 = skenario manual rilis**
+> (bukti screenshot per rilis; handler terkait ada di `05…09_*.gs`).
+> TC-P1…P7 = verifikasi live UI Paspor.
 >
 > **Target per 2026-09-19**:
 > - `runLibraryTests()` — **PASS 42 / FAIL 0 / SKIP 1** (CoreLib v2.3.0, pin 15).
@@ -11,6 +13,7 @@
 > **Riwayat revisi**:
 > - 2026-09-18 — TESTCASE v2 initial.
 > - **2026-09-19 — G18d**: target `runLibraryTests` 38 → 42; + `testAdopsiG18d`; cleanup file uji.
+- **2026-09-20 — SWEEP v2.1**: TC-01…26 ditegaskan manual-release; TC-30 butir arsip view direvisi (dihapus, bukan non-include); matriks sweep 37 TC hijau kecuali dua amendemen ini.
 
 ## Master (FR-01..04)
 - **TC-01** admin `save_rhk` valid → success; `id` ter-generate; `periode_tahun` tersimpan.
@@ -112,7 +115,7 @@ Dijalankan sebagai `testAdopsiG18d()` di `99_Test.gs` — **murni in-memory, tid
   - `Index.html` hanya include 9 view + 7 file J_* (bukan 13+ view).
   - `J_Api.html` hanya 3 method publik: `loadLaporan`, `debouncedLoadLaporan`, `loadProfil`.
   - `J_State.html` hanya ~20 field (bukan ~45).
-  - `V_Tentang.html`/`V_Analisa.html`/`V_RiwayatLaporan.html`/`V_MasterData.html` — file ada di repo (arsip) tapi **tidak** di-include di `Index.html`.
+  - `V_Tentang.html`/`V_Analisa.html`/`V_RiwayatLaporan.html`/`V_MasterData.html` — **dihapus dari `src/` pada refactor generation (2026-09-20)**; sejarah tersimpan di git. `Index.html` hanya include 9 view hidup.
   - `A0_Style.html` tidak ada lagi; isinya inline di `Index.html`.
   - `AppCore.version` di Console = `"2.8.0"` (bukan `"2.7.4"`).
 
