@@ -45,6 +45,9 @@ const SilaharMixin = {
 };
 
 // Inisialisasi Aplikasi Terpadu SILAHAR
+window.getMyScope = function(){ try{ return window.AppCore ? AppCore.getMyScope() : 'all'; }catch(e){ return 'all'; } };
+window.setMyScope = function(v){ try{ if(window.AppCore) AppCore.setMyScope(v); else localStorage.setItem('silahar_scope', v); }catch(e){} };
+
 const app = AppCore.create({
   appCode: 'SILAHAR',
   appTitle: 'SILAHAR',

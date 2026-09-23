@@ -61,6 +61,76 @@ var SESSION_PREFIX     = 'APP_SESSION_' + APP_CODE + '_'; // default v2 (B2) —
 var SESSION_TTL_SECONDS = 6 * 60 * 60;                    // 6 jam = cap v2 (B16)
 var DATA_CACHE_TTL      = 180;                            // 3 menit
 var ROLE_LEVELS         = CoreLib.MASTER_ROLE_LEVELS;
+
+// ==================== §1b TEMA PER-APP (CoreLib v2.4.0 C8) ====================
+// THEME_JSON disimpan di Script Properties sebagai JSON string:
+//   {"primary":"#059669","preset":"emerald"}  (6 preset: emerald/sky/amber/violet/rose/teal)
+// Frontend inject via <?!= getThemeCss() ?> di Index.html + <app-theme-picker>.
+// Default: emerald (#059669) bila properti kosong.
+var DEFAULT_THEME = { primary: '#059669', preset: 'emerald' };
+
+function getThemeConfig_() {
+  try { return CoreLib.getThemeConfig(appProps_(), DEFAULT_THEME); }
+  catch (e) { return DEFAULT_THEME; }
+}
+
+// Dipanggil oleh Index.html template: <?!= getThemeCss() ?>
+function getThemeCss() {
+  try { return CoreLib.getThemeCss(appProps_(), DEFAULT_THEME); }
+  catch (e) { return ':root{--primary:#059669}'; }
+}
+
+// Dipanggil oleh handler save_theme (admin) untuk simpan THEME_JSON
+function saveThemeConfig_(obj) {
+  if (!obj || !obj.primary) throw new Error('Tema tidak valid.');
+  return CoreLib.buildThemeCss ? CoreLib.buildThemeCss(obj) : getThemeCss();
+}
+
+// ==================== §1c SCOPE "SAYA" (RLS ownerField) ====================
+// Helper untuk filter Saya/Semua di handler utama.
+// Di frontend: AppCore.getMyScope() → 'mine' | 'all' (disimpan localStorage)
+// Di backend: filter rows where row.pegawai_id === session.pegawai_id
+// resources declaratif untuk dispatcher: auto-RLS bila set ownerField
+var SCOPE_OWNER_FIELD = 'pegawai_id'; // kolom pemilik di RENCANA_HARIAN/LAPORAN_HARIAN
+
+function filterByScope_(rows, scope, session) {
+  if (scope === 'mine' && session && session.pegawai_id) {
+    return rows.filter(function(r){ return String(r[SCOPE_OWNER_FIELD]||'') === String(session.pegawai_id); });
+  }
+  return rows;
+}
+
+// ==================== §1d WORKFLOW & PERIODE (CoreLib v2.4.0 A+B) ====================
+// STATUS_MAP untuk validateTransition (C4) — transisi legal per resource
+var STATUS_MAP = {
+  'RENCANA_HARIAN': {
+    'direncanakan': ['dikerjakan', 'batal'],
+    'dikerjakan':   ['selesai', 'batal'],
+    'selesai':      ['diverifikasi'],
+    'diverifikasi': [],
+    'batal':        []
+  },
+  'LAPORAN_HARIAN': {
+    'baru':      ['diproses', 'arsip'],
+    'diproses':  ['selesai', 'tertunda'],
+    'tertunda':  ['diproses', 'arsip'],
+    'selesai':   ['arsip'],
+    'arsip':     []
+  },
+  'REKAP_BULANAN': {
+    'draft': ['final', 'batal'],
+    'final': ['arsip'],
+    'batal': [],
+    'arsip': []
+  }
+};
+
+// Wrapper tipis — biar app bisa panggil tanpa import CoreLib langsung
+function periodeBulan_(tanggalStr){ try{ return CoreLib.periodeBulan(tanggalStr); }catch(e){ return ''; } }
+function dalamPeriode_(tgl, start, end){ try{ return CoreLib.dalamPeriode(tgl, start, end); }catch(e){ return false; } }
+function hitungHariKerja_(start, end){ try{ return CoreLib.hitungHariKerja(start, end); }catch(e){ return 0; } }
+function findUnique_(sheet, field, value){ return CoreLib.findUnique(SPREADSHEET_ID, sheet, field, value, getAllHeaders_()); }
+
 // TEST_MODE DIHAPUS (B1) — login selalu via SSO asli.
 
 // ==================== SCHEMA CANONICAL LOKAL ====================
@@ -220,6 +290,14 @@ function getAppConfig_() {
     headersMap:      getAllHeaders_(),
     pkFields:        {},   // opsional — auto-deteksi 'id' sudah cukup
 
+    // Tahap 3 — deklaratif scope & workflow (CoreLib v2.4.0)
+    resources: {
+      RENCANA_HARIAN: { ownerField: SCOPE_OWNER_FIELD },
+      LAPORAN_HARIAN: { ownerField: SCOPE_OWNER_FIELD },
+      REKAP_BULANAN:  { ownerField: SCOPE_OWNER_FIELD }
+    },
+    statusMap: STATUS_MAP,
+
     // Level aksi (fail-closed: default dispatcher untuk aksi tak dikenal = viewer).
     //   save_my_profile  : viewer (email diambil dari session, aman)
     //   get_config       : admin  (frontend non-admin tak butuh config)
@@ -240,7 +318,9 @@ function getAppConfig_() {
       save_satuan:           'admin',
       verifikasi_realisasi:  'admin',
       get_antrian_verifikasi:'admin',
-      generate_rekap_bulanan:'admin'
+      generate_rekap_bulanan:'admin',
+      get_theme:             'viewer',
+      save_theme:            'admin'
     },
 
     // Aksi generik save/delete LAPORAN_HARIAN: default v2 (admin). Frontend
@@ -250,7 +330,10 @@ function getAppConfig_() {
     entityPermissions: {},
 
     isRefSheetFunc: isReferenceSheet_,
-    localHandlers:  {}   // diisi file router: { nama_aksi: function(data, currentUser) {...} }
+    localHandlers: {
+      get_theme: function(data, user){ return { success:true, data: getThemeConfig_() }; },
+      save_theme: function(data, user){ var css = saveThemeConfig_(data); appProps_().setProperty('THEME_JSON', JSON.stringify(data)); return { success:true, data: getThemeConfig_(), css: css }; }
+    }
   };
 }
 var APP_CONFIG = getAppConfig_();
