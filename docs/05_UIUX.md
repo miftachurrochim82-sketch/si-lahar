@@ -8,7 +8,7 @@
 > - 2026-09-18 — UIUX v2 initial (Gate 0).
 > - 2026-09-18 (malam) — G18c-2: review owner, konsolidasi file, kit alignment.
 > - **2026-09-19 — G18d**: konvergensi frontend v1→v2 (cleanup file orphan, dead code);
->   bump CDN `@v2.8.1`.
+>   bump CDN `@v2.9.1`.
 
 ## Peta halaman (menu sidebar v2 final)
 
@@ -45,7 +45,7 @@ Menu sidebar = **9 item** (6 Kinerja + 1 Master + 1 Pribadi + 1 Sistem).
 ## Shell & arsitektur file
 
 `Index.html` = **shell tipis**:
-- Pin CDN `@v2.8.1` (4 aset: `app-common.min.css`, `app-components.min.js`, `app-modules.min.js`, `app-core.min.js`).
+- Pin CDN `@v2.9.1` (4 aset: `app-common.min.css`, `app-components.min.js`, `app-modules.min.js`, `app-core.min.js`).
 - Identitas tema `:root` (`--primary-*`).
 - Blok `<style>` kustom **inline** (kanban/kalender/mini-progress — eks-A0_Style).
 - Include SATU tingkat: `V_Modals` → `V_Dashboard` → `V_Rencana` → `V_Realisasi` → `V_SkpBulanan` → `V_Verifikasi` → `V_Master` → `V_Profil` → `V_Pengaturan` + 7 file `J_*`.
@@ -62,7 +62,7 @@ Menu sidebar = **9 item** (6 Kinerja + 1 Master + 1 Pribadi + 1 Sistem).
 - **min-w mobile**: kolom penting `<app-crud-table>` wajib `thClass min-w-[...]` agar scroll horizontal mulus di HP.
 - **Opsi waktu dinamis**: pemilih tahun/bulan SELALU computed (kini ±N), **tidak pernah hardcode**.
 
-## Komponen kit yang dipakai (v2.8.1)
+## Komponen kit yang dipakai (v2.9.1)
 
 | Komponen | Dipakai di |
 |---|---|
@@ -80,7 +80,7 @@ Menu sidebar = **9 item** (6 Kinerja + 1 Master + 1 Pribadi + 1 Sistem).
 | `<app-settings>` (modul kit) | `V_Pengaturan.html` |
 | Direktif `v-can` | (tersedia, adopsi opsional) |
 
-**Kelas CSS kit yang dipakai**: `.card`, `.btn*`, `.input`, `.form-label`, `.badge*`, `.btn-icon`, `.btn-icon-danger`, `.btn-lg`, `.btn-aksi` — semua dari `app-common.css` v2.8.1.
+**Kelas CSS kit yang dipakai**: `.card`, `.btn*`, `.input`, `.form-label`, `.badge*`, `.btn-icon`, `.btn-icon-danger`, `.btn-lg`, `.btn-aksi` — semua dari `app-common.css` v2.9.1.
 
 ## Custom UI yang dipertahankan (diizinkan)
 

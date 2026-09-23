@@ -124,7 +124,7 @@ Verifikasi: `node --check` OK; balance OK; smoke test rantai computed + scope = 
 
 ## Adendum v1.2 (G18d, 2026-09-19)
 
-Adopsi CoreLib v2.3.0 di backend **tidak mengubah** Paspor Kinerja — semua
+Adopsi CoreLib v2.4.0 di backend **tidak mengubah** Paspor Kinerja — semua
 data masih dari API yang sama. Yang berubah:
 - **`tanggalKey10_`** (dipakai di transkrip & rekap) kini **sadar WIB** via
   `CoreLib.dateKey10()` — konsisten untuk user WIB sebelum 07:00.

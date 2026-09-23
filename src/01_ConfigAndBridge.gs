@@ -20,7 +20,7 @@
 //   - G18a (2026-09-18, e-Kinerja Harian): 6 sheet bisnis ditambahkan —
 //     3 master (RHK_SKP, JENIS_TUGAS, SATUAN) + 3 tabel (RENCANA_HARIAN,
 //     REKAP_BULANAN, LAMPIRAN_BUKTI). Total sheet aktif = 9.
-//   - G18d (2026-09-19, adopsi CoreLib v2.3.0):
+//   - G18d (2026-09-19, adopsi CoreLib v2.4.0):
 //     * todayIso_() DIGANTI dari CoreLib.todayIso() (UTC) menjadi
 //       CoreLib.todayIsoLocal() (WIB). FIX bug laten: tanggal default
 //       form & tanggal_verifikasi sebelumnya bisa mundur 1 hari untuk

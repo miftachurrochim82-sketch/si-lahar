@@ -7,7 +7,7 @@
 > **Riwayat skema**:
 > - 2026-09-17 — Gate 0: 3 sheet fondasi (LAPORAN_HARIAN, KONFIGURASI, ZZ_TEST_CRUD).
 > - 2026-09-18 — G18a: +6 sheet e-Kinerja (3 master + 3 tabel). Total 9 sheet.
-> - **2026-09-19 — G18d**: tidak ada perubahan skema (util CoreLib v2.3.0 saja).
+> - **2026-09-19 — G18d**: tidak ada perubahan skema (util CoreLib v2.4.0 saja).
 
 ## M1 RHK_SKP (master bisnis)
 | Kolom | Tipe | Catatan |

@@ -4,7 +4,7 @@
 > si-kompetensi, sudah dilaksanakan sejak G18b: `05_MasterKinerjaApi.gs` s/d
 > `09_DashboardKinerjaApi.gs` + `V_*.html` per modul).
 >
-> **Perubahan G18d (2026-09-19)**: adopsi CoreLib v2.3.0 (util sadar-WIB,
+> **Perubahan G18d (2026-09-19)**: adopsi CoreLib v2.4.0 (util sadar-WIB,
 > paginasi, pencarian, whitelist); konvergensi frontend v1→v2 (cleanup file orphan,
 > dead code); bump app_version internal ke 2.1.0.
 
@@ -68,7 +68,7 @@ Perilaku BerAKHLAK/penilaian 360, ekspektasi pimpinan, upload file Drive, notifi
 integrasi SIASN, view laporan pimpinan lintas instansi.
 
 ## Adopsi platform (G18d — 2026-09-19)
-- **Util tanggal WIB**: `CoreLib.todayIsoLocal()` dan `CoreLib.dateKey10()` (v2.3.0) menggantikan
+- **Util tanggal WIB**: `CoreLib.todayIsoLocal()` dan `CoreLib.dateKey10()` (v2.4.0) menggantikan
   helper lokal `tanggalKey10_` (yang sudah jadi delegasi). `todayIso_()` di `01_ConfigAndBridge.gs`
   diarahkan ke `CoreLib.todayIsoLocal()` — fix bug laten UTC vs WIB.
 - **Paginasi & pencarian**: `CoreLib.paginate()` dan `CoreLib.matchSearch()` menggantikan
@@ -76,4 +76,4 @@ integrasi SIASN, view laporan pimpinan lintas instansi.
   call-site tidak berubah.
 - **Whitelist enum**: `ekEnum_` di `04_KinerjaUtils.gs` didelegasikan ke `CoreLib.whitelist()`
   (dengan try-catch untuk cermin perilaku non-throwing return `dflt`).
-- **CoreLib pin 15** + **CDN `@v2.8.1`** di `Index.html`.
+- **CoreLib pin 17** + **CDN `@v2.9.1`** di `Index.html`.

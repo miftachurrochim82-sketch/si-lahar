@@ -12,7 +12,7 @@
 > **Riwayat revisi**:
 > - 2026-09-18 — API FLOW v2 initial (Gate 0).
 > - 2026-09-18 (malam) — G18c-2: konsolidasi file, kit alignment.
-> - **2026-09-19 — G18d**: adopsi CoreLib v2.3.0 + cleanup v1→v2 + pin 15 + CDN v2.8.1.
+> - **2026-09-19 — G18d**: adopsi CoreLib v2.4.0 + cleanup v1→v2 + pin 17 + CDN v2.9.1.
 
 ## Alur bisnis utama
 ```
@@ -90,7 +90,7 @@
 Standar CoreLib: `{success, data|error, code?, meta?}`; `UNAUTHORIZED` → `handleSessionExpired`
 (app-core frontend); cache-bust & dedup baca dari `AppCore.callServer`.
 
-## Adopsi CoreLib v2.3.0 di alur API (G18d)
+## Adopsi CoreLib v2.4.0 di alur API (G18d)
 
 Tidak ada aksi API baru. Yang berubah hanya **implementasi internal** dari wrapper lokal
 (yang sudah ada di `02_AppLogic.gs` & `04_KinerjaUtils.gs`):
@@ -116,8 +116,8 @@ limit, total_pages). Tidak ada perubahan signature atau perilaku response.
   J_Helpers); `V_Tentang`/`A0_Style`/`V_Analisa`/`V_RiwayatLaporan`/`V_MasterData` dihapus
   atau diarsip; dashboard v1 (`dashboard`/`analytics`) tidak lagi dipakai.
 - **G18d (2026-09-19)**:
-  - **Pin CoreLib** = 15 (v2.3.0) — util baru `todayIsoLocal`/`dateKey10`/`paginate`/`matchSearch`/`whitelist` tersedia.
-  - **CDN** = `@v2.8.1` (patch T49).
+  - **Pin CoreLib** = 15 (v2.4.0) — util baru `todayIsoLocal`/`dateKey10`/`paginate`/`matchSearch`/`whitelist` tersedia.
+  - **CDN** = `@v2.9.1` (patch T49).
   - **Wrapper lokal** didelegasikan ke CoreLib (lihat tabel atas).
   - **Cleanup**: 11 method → 3 method di `J_Api`; `J_State` dari ~45 field → ~20 field;
     5 file HTML dihapus/diarsip.

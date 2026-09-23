@@ -9,7 +9,7 @@
 > - 2026-09-17 (malam) — G12 (bug tanggal) + G13–G15 (kit CDN + modularisasi).
 > - 2026-09-18 — G16 (higiene jenis_kegiatan) + G17 (toolkit perawatan) + G18 (e-Kinerja).
 > - 2026-09-18 (malam) — G18c-2 (konsolidasi file) + G19 (Paspor Kinerja).
-> - **2026-09-19 — G18d**: adopsi CoreLib v2.3.0, bump pin 15, CDN v2.8.1, cleanup final.
+> - **2026-09-19 — G18d**: adopsi CoreLib v2.4.0, bump pin 17, CDN v2.9.1, cleanup final.
 
 ---
 
@@ -62,11 +62,11 @@
 ### G12 — Bug geser tanggal -1 hari → TUTUP ✅
 - **Fix**: helper `tanggalKey10_` (WIB-aware) di hook + 6 titik baca/sortir/agregasi.
 - **Verifikasi**: `testLaporanGuards` 13/13 PASS di GAS (2026-09-17).
-- **G18d (2026-09-19)**: helper kini didelegasikan ke `CoreLib.dateKey10()` (v2.3.0) — fix diterapkan di ekosistem, si-kompetensi juga dapat manfaat (3 bug laten sekaligus).
+- **G18d (2026-09-19)**: helper kini didelegasikan ke `CoreLib.dateKey10()` (v2.4.0) — fix diterapkan di ekosistem, si-kompetensi juga dapat manfaat (3 bug laten sekaligus).
 
 ### G13 — Frontend belum selaras CDN kit → TUTUP ✅
 - **Tahap A+B**: `app-common.min.css` + `app-components.min.js` dimuat; 3 tabel referensi SIMPEG → `<app-crud-table>`.
-- **Bukti**: `Index.html` final memuat 4 aset CDN `@v2.8.1`.
+- **Bukti**: `Index.html` final memuat 4 aset CDN `@v2.9.1`.
 
 ### G14 — Logika Vue monolitik inline → TUTUP ✅
 - **Sesudah**: 7 file `J_*` (State, Helpers, Api, Actions, Export, Kinerja, App) — pola si-kompetensi.
@@ -89,7 +89,7 @@
 - **G18b**: split per-domain (`04_KinerjaUtils` + `05..09_*Api`).
 - **G18c**: frontend 7 view + `J_Kinerja` + Paspor Kinerja.
 - **G18c-2**: konsolidasi file (`V_Rencana`, `V_Master`, `V_Modals`, `J_Helpers`).
-- **G18d (2026-09-19)**: adopsi CoreLib v2.3.0, pin 15, CDN `@v2.8.1`, cleanup v1→v2.
+- **G18d (2026-09-19)**: adopsi CoreLib v2.4.0, pin 17, CDN `@v2.9.1`, cleanup v1→v2.
 - **Bukti**: `runLibraryTests()` PASS 42/0/1 + `testAdopsiG18d()` 13/13 PASS (2026-09-19).
 
 ### G11a — `contract_check` → TUTUP ✅
@@ -100,14 +100,14 @@
 - **G19b**: implementasi live (`V_Profil.html` + `J_Kinerja` + `J_App`).
 - **Bukti**: `TC-P1..TC-P7` PASS live 2026-09-19.
 
-### G20 (baru, G18d) — Adopsi util CoreLib v2.3.0 → TUTUP ✅
+### G20 (baru, G18d) — Adopsi util CoreLib v2.4.0 → TUTUP ✅
 - **Delegasi**: `tanggalKey10_` → `CoreLib.dateKey10`; `paginate_` → `CoreLib.paginate`; `matchSearch_` → `CoreLib.matchSearch`; `ekEnum_` → `CoreLib.whitelist`; `todayIso_()` → `CoreLib.todayIsoLocal` (WIB).
 - **Bukti**: `testAdopsiG18d()` 13/13 PASS.
 
-### G21 (baru, G18d) — Bump pin CoreLib 14 → 15 & CDN `@v2.8.0` → `@v2.8.1` → TUTUP ✅
+### G21 (baru, G18d) — Bump pin CoreLib 14 → 15 & CDN `@v2.8.0` → `@v2.9.1` → TUTUP ✅
 - **`appsscript.json`**: `"version": "14"` → `"15"`.
-- **`Index.html`**: 4 URL CDN → `@v2.8.1`.
-- **Bukti**: `runLibraryTests()` PASS 42/0/1 dari si-lahar (bukti pin 15 aktif).
+- **`Index.html`**: 4 URL CDN → `@v2.9.1`.
+- **Bukti**: `runLibraryTests()` PASS 42/0/1 dari si-lahar (bukti pin 17 aktif).
 
 ### G22 (baru, G18d) — Cleanup file & dead code → TUTUP ✅
 - **Dihapus/diarsip**: 5 file (`A0_Style`, `V_Analisa`, `V_RiwayatLaporan`, `V_MasterData`, `V_Tentang`).
@@ -147,8 +147,8 @@
 | 🟢 NICE-TO-HAVE | 1 (G20-modal-RHK — perlu nomor ulang untuk hindari tabrakan dengan G20 adopsi) |
 
 ### Kesehatan keseluruhan
-- **Backend**: 100% selaras CoreLib v2.3.0 (pin 15).
-- **Frontend**: 100% pakai CDN kit v2.8.1.
+- **Backend**: 100% selaras CoreLib v2.4.0 (pin 17).
+- **Frontend**: 100% pakai CDN kit v2.9.1.
 - **Dokumen**: seluruh 9 dokumen `docs/` sinkron setelah update 2026-09-19.
 - **Test**: `runLibraryTests` 42/0/1 + `testAdopsiG18d` 13/13 + `testLaporanGuards` 13/13.
 

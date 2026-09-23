@@ -6,7 +6,7 @@
 > TC-P1…P7 = verifikasi live UI Paspor.
 >
 > **Target per 2026-09-19**:
-> - `runLibraryTests()` — **PASS 42 / FAIL 0 / SKIP 1** (CoreLib v2.3.0, pin 15).
+> - `runLibraryTests()` — **PASS 42 / FAIL 0 / SKIP 1** (CoreLib v2.4.0, pin 17).
 > - `testAdopsiG18d()` — **13 asersi PASS** (verifikasi delegasi wrapper lokal ke CoreLib).
 > - `testLaporanGuards()` — **13 asersi PASS** (regresi proteksi laporan v1).
 >
@@ -57,12 +57,12 @@
 - **TC-26** enum legacy `jenis_kegiatan` di luar whitelist tampil '`lainnya`'/badge legacy, tidak crash.
 
 ## Regresi v2 (CoreLib)
-- **TC-27** `runLibraryTests()` target: **PASS 42 / FAIL 0 / SKIP 1** (CoreLib v2.3.0, pin 15).
+- **TC-27** `runLibraryTests()` target: **PASS 42 / FAIL 0 / SKIP 1** (CoreLib v2.4.0, pin 17).
   - 38 test lama (Foundation + Gateway + v2.1 + v2.2 + v2.2.2) — tetap PASS.
-  - 4 test baru v2.3.0: `testTodayIsoLocalV230`, `testDateKey10V230`, `testPaginateV230`, `testMatchSearchV230`.
+  - 4 test baru v2.4.0: `testTodayIsoLocalV230`, `testDateKey10V230`, `testPaginateV230`, `testMatchSearchV230`.
   - SKIP wajar: `testCacheIsolation` (butuh `TEST_SPREADSHEET_ID_B` di Script Properties).
 
-## Regresi G18d — Adopsi CoreLib v2.3.0 (FR-25)
+## Regresi G18d — Adopsi CoreLib v2.4.0 (FR-25)
 Dijalankan sebagai `testAdopsiG18d()` di `99_Test.gs` — **murni in-memory, tidak menulis sheet**.
 
 | ID | Asersi | Target |
@@ -75,7 +75,7 @@ Dijalankan sebagai `testAdopsiG18d()` di `99_Test.gs` — **murni in-memory, tid
 | **TC-28f** | `matchSearch_(row, 'PATROLI', ['deskripsi'])` === `true` | uppercase input |
 | **TC-28g** | `matchSearch_(row, 'kebakaran', ['deskripsi', 'hasil'])` === `false` | tidak match |
 | **TC-28h** | `matchSearch_(row, '', ['deskripsi'])` === `true` | q kosong → true |
-| **TC-28i** | `matchSearch_(row, 'apa saja', [])` === `false` | fields kosong → false (cermin CoreLib v2.3.0) |
+| **TC-28i** | `matchSearch_(row, 'apa saja', [])` === `false` | fields kosong → false (cermin CoreLib v2.4.0) |
 | **TC-28j** | `ekEnum_('terjadwal', ['Terjadwal', 'Selesai'], 'x')` === `'Terjadwal'` | lowercase → kanonik |
 | **TC-28k** | `ekEnum_('TERJADWAL', ['Terjadwal', 'Selesai'], 'x')` === `'Terjadwal'` | uppercase → kanonik |
 | **TC-28l** | `ekEnum_('ngawur', ['A', 'B'], 'dflt')` === `'dflt'` | non-match → dflt (non-throwing) |

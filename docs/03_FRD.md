@@ -5,7 +5,7 @@
 >
 > **Riwayat revisi**:
 > - 2026-09-18 — FRD v2 initial (Gate 0, G18a–G18c).
-> - **2026-09-19 — G18d**: util CoreLib v2.3.0 diadopsi (FR-25); cleanup v1→v2 (FR-26).
+> - **2026-09-19 — G18d**: util CoreLib v2.4.0 diadopsi (FR-25); cleanup v1→v2 (FR-26).
 
 ## Master
 - **FR-01** CRUD RHK_SKP (admin): validasi pegawai_id ada di referensi SIMPEG, periode_tahun wajib, jenis_rhk ∈ {utama,tambahan}, satuan_id ∈ SATUAN aktif, target_tahunan numerik > 0.
@@ -73,8 +73,8 @@
 - **FR-24** Kolom audit CoreLib wajib di semua sheet baru (otomatis).
   - Infra: `ensureSheet` CoreLib (auto-tambah `created_at/by`, `updated_at/by`, `deleted_at`).
 
-## Adopsi CoreLib v2.3.0 (G18d — 2026-09-19)
-- **FR-25** Util baru CoreLib v2.3.0 dipakai via delegasi:
+## Adopsi CoreLib v2.4.0 (G18d — 2026-09-19)
+- **FR-25** Util baru CoreLib v2.4.0 dipakai via delegasi:
   - `CoreLib.todayIsoLocal()` — pengganti `todayIso_()` (WIB-aware, fix bug laten UTC).
     - Backend: `01_ConfigAndBridge.gs` — `todayIso_()` dan `todayIsoLocal_()`.
   - `CoreLib.dateKey10()` — pengganti isi `tanggalKey10_()`.

@@ -8,7 +8,7 @@ dan **Vue 3 + Tailwind CSS** (frontend via CDN). Aplikasi ini mengimplementasika
 
 ---
 
-## 📌 Status Saat Ini (per 2026-09-19)
+## 📌 Status Saat Ini (per 2026-09-23)
 
 **Fase retrofit: SELESAI — siap produksi.**
 
@@ -20,9 +20,9 @@ dan **Vue 3 + Tailwind CSS** (frontend via CDN). Aplikasi ini mengimplementasika
 | (4) Contract Check + Paste GAS + Tes + Deploy | ✅ Selesai — `runLibraryTests` PASS 42/0/1 + `testAdopsiG18d` 13/13 |
 
 ### Rilis Terkini
-- **App version**: `v2.1.0` (2026-09-19)
-- **CoreLib pin**: `15` (v2.3.0)
-- **Frontend CDN**: `@v2.8.1`
+- **App version**: `v2.2.0` (2026-09-23)
+- **CoreLib pin**: `17` (v2.4.0)
+- **Frontend CDN**: `@v2.9.1`
 - **Backend**: 10 file `.gs` (04_KinerjaUtils + 05..09 per-domain)
 - **Frontend**: 10 file view `V_*` + 7 file logika `J_*` + `Index.html`
 
@@ -34,14 +34,14 @@ Seluruh dokumentasi AS-IS/TO-BE berada di folder **`docs/`**:
 
 | Dokumen | Isi | Versi |
 |---|---|---|
-| [`01_BRD.md`](docs/01_BRD.md) | Masalah, pengguna, batas, ekosistem, ukuran sukses | v2.1.0 |
-| [`02_PRD.md`](docs/02_PRD.md) | Peta 8 modul (P1–P8), story + AC, scope | v2.1.0 |
+| [`01_BRD.md`](docs/01_BRD.md) | Masalah, pengguna, batas, ekosistem, ukuran sukses | v2.2.0 |
+| [`02_PRD.md`](docs/02_PRD.md) | Peta 8 modul (P1–P8), story + AC, scope | v2.2.0 |
 | [`03_FRD.md`](docs/03_FRD.md) | FR-01..FR-26 + aturan Gate 0 | G18d |
 | [`04_DATABASE.md`](docs/04_DATABASE.md) | 9 sheet aktif (3 master + 4 tabel + 2 infra) + enum + audit | 9 sheet |
 | [`05_UIUX.md`](docs/05_UIUX.md) | Peta halaman, kit komponen, konvensi desain | Final |
 | [`06_API_FLOW.md`](docs/06_API_FLOW.md) | 22 handler e-Kinerja + 12 handler v1 + CoreLib built-in | Final |
 | [`07_TESTCASE.md`](docs/07_TESTCASE.md) | 27 TC + 13 asersi adopsi + 13 guard + 7 TC-P | 42/13/13 |
-| [`08_GAP_LIST.md`](docs/08_GAP_LIST.md) | Status 22 gap (18 TUTUP, 1 DITUNDA, 3 BACKLOG) | 2026-09-19 |
+| [`08_GAP_LIST.md`](docs/08_GAP_LIST.md) | Status 22 gap (18 TUTUP, 1 DITUNDA, 3 BACKLOG) | 2026-09-23 |
 | [`09_PROFIL_KINERJA.md`](docs/09_PROFIL_KINERJA.md) | Paspor Kinerja ASN (live) + riwayat v1.1/v1.2 | LIVE |
 
 ### Aturan Main (Gate 0)
@@ -67,7 +67,7 @@ si-lahar/
 │   ├── 08_GAP_LIST.md
 │   └── 09_PROFIL_KINERJA.md
 └── src/                      # 29 file deploy ke GAS
-    ├── appsscript.json       # Manifest V8 + library CoreLib pin 15
+    ├── appsscript.json       # Manifest V8 + library CoreLib pin 17
     │
     ├── 01_ConfigAndBridge.gs # Konstanta & bridge ke CoreLib
     ├── 02_AppLogic.gs        # doGet/doPost, handler laporan v1, util
@@ -80,7 +80,7 @@ si-lahar/
     ├── 09_DashboardKinerjaApi.gs # FR-19..20: dashboard + analisa tim
     ├── 99_Test.gs            # Test suite + diagnostik
     │
-    ├── Index.html            # Shell tipis (pin CDN @v2.8.1 + include 1 tingkat)
+    ├── Index.html            # Shell tipis (pin CDN @v2.9.1 + include 1 tingkat)
     │
     ├── V_Modals.html         # 7 modal terpusat
     ├── V_Dashboard.html      # FR-19: Dashboard Kinerja
@@ -106,7 +106,7 @@ si-lahar/
 ## 🏛️ Arsitektur
 
 ### Backend (GAS + Google Sheets)
-- **CoreLib pin 15** (v2.3.0) — library bersama ekosistem
+- **CoreLib pin 17** (v2.4.0) — library bersama ekosistem
   - Util sadar-WIB: `todayIsoLocal()`, `dateKey10()`
   - Util paginasi & pencarian: `paginate()`, `matchSearch()`
   - Whitelist enum: `whitelist()`
@@ -117,7 +117,7 @@ si-lahar/
 - **Sheet sistem CoreLib** (auto-create, tidak dihitung): `AUDIT_LOGS`, `MAIN_DATA`
 - **Sheet referensi SIMPEG** (auto-baca dari master): `PEGAWAI`, `JABATAN`, `UNIT_KERJA`
 
-### Frontend (CDN `@v2.8.1`)
+### Frontend (CDN `@v2.9.1`)
 - **Shell tipis**: `Index.html` hanya pin CDN + include 1 tingkat + mount Vue
 - **10 view `V_*`** + **7 modul `J_*`** (pola modular si-kompetensi)
 - **Kit komponen** dari `frontend-cdn`:
@@ -137,7 +137,7 @@ si-lahar/
 ## 🚀 Deploy (GAS)
 
 ### Prasyarat
-1. **CoreLib** sudah terpasang di GAS (ID: `1GmeYflfMpRa1iTVgFHRD6K1DMoxc9OoKqpuucPJXgNZ9XBK06O7wgDkO`, pin `15`).
+1. **CoreLib** sudah terpasang di GAS (ID: `1GmeYflfMpRa1iTVgFHRD6K1DMoxc9OoKqpuucPJXgNZ9XBK06O7wgDkO`, pin `17`).
 2. **Script Properties** sudah diisi:
 
 | Key | Nilai |
@@ -173,7 +173,7 @@ CoreLib.todayIsoLocal() // tanggal hari ini WIB
 
 | Fungsi | Kegunaan | Target |
 |---|---|---|
-| `runLibraryTests()` | Regression test CoreLib v2.3.0 | **PASS 42 / FAIL 0 / SKIP 1** |
+| `runLibraryTests()` | Regression test CoreLib v2.4.0 | **PASS 42 / FAIL 0 / SKIP 1** |
 | `testAdopsiG18d()` | Verifikasi delegasi wrapper lokal → CoreLib | **13/13 PASS** |
 | `testLaporanGuards()` | Proteksi laporan v1 (P1–P8) | **13/13 PASS** |
 | `runAllDiagnostics()` | Cek koneksi DB + schema + CoreLib | Semua ✅ |
